@@ -119,7 +119,8 @@ export default function BouncingCircles() {
   }
 
   const generateRandomColor = () => {
-    return `hsl(${Math.random() * 360}, 70%, 50%)`
+    const hue = Math.random() * 360
+    return `hsl(${hue}, 70%, 50%)`
   }
 
   const generateRandomSize = () => {
@@ -204,10 +205,11 @@ export default function BouncingCircles() {
     const id = Date.now()
     const angle = Math.random() * 360
     const size = generateRandomSize()
+    const color = generateRandomColor()
 
     const newCircle = {
       id,
-      color: generateRandomColor(),
+      color,
       size
     }
 
@@ -408,21 +410,31 @@ export default function BouncingCircles() {
           touchAction: 'none'
         }}
       >
-        {circles.map(circle => (
-          <div
-            key={circle.id}
-            ref={el => circleRefs.current.set(circle.id, el)}
-            style={{
-              position: 'absolute',
-              width: `${circle.size}px`,
-              height: `${circle.size}px`,
-              borderRadius: '50%',
-              backgroundColor: circle.color,
-              willChange: 'transform',
-              pointerEvents: 'none'
-            }}
-          />
-        ))}
+        {circles.map(circle => {
+          // Convert HSL to RGB for rgba background
+          const div = document.createElement('div')
+          div.style.color = circle.color
+          document.body.appendChild(div)
+          const rgbColor = window.getComputedStyle(div).color
+          document.body.removeChild(div)
+          
+          return (
+            <div
+              key={circle.id}
+              ref={el => circleRefs.current.set(circle.id, el)}
+              style={{
+                position: 'absolute',
+                width: `${circle.size}px`,
+                height: `${circle.size}px`,
+                borderRadius: '50%',
+                border: `2px solid ${circle.color}`,
+                backgroundColor: rgbColor.replace('rgb', 'rgba').replace(')', ', 0.25)'),
+                willChange: 'transform',
+                pointerEvents: 'none'
+              }}
+            />
+          )
+        })}
       </div>
     </>
   )
