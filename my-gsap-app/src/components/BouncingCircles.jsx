@@ -5,12 +5,26 @@ import {
   playCollisionBeep, 
   playWallCollisionBeep, 
   calculatePan, 
-  AVAILABLE_SCALES, 
+  AVAILABLE_SCALES,
+  WAVEFORMS, 
   setScale,
   setWallDuration,
   getWallDuration,
   setCircleDuration,
-  getCircleDuration
+  getCircleDuration,
+  setDetune,
+  getDetune,
+  setWaveform,
+  getWaveform,
+  setDelayEnabled,
+  getDelayEnabled,
+  setDelayTime,
+  getDelayTime,
+  setDelayFeedback,
+  getDelayFeedback,
+  setDelayMix,
+  getDelayMix,
+  cleanup as cleanupAudio
 } from '../utils/sound'
 import { checkCircleCollision, resolveCollision } from '../utils/physics'
 
@@ -39,7 +53,8 @@ const controlsContainerStyles = {
 
 const scaleButtonsStyles = {
   display: 'flex',
-  gap: '8px'
+  gap: '8px',
+  flexWrap: 'wrap'
 }
 
 const buttonStyles = {
@@ -77,27 +92,123 @@ const sliderStyles = {
 const labelStyles = {
   color: 'white',
   fontSize: '14px',
-  fontFamily: 'system-ui, sans-serif'
+  fontFamily: 'system-ui, sans-serif',
+  userSelect: 'none'
+}
+
+const checkboxStyles = {
+  marginRight: '8px',
+  accentColor: '#9333ea',
+  cursor: 'pointer'
 }
 
 export default function BouncingCircles() {
   const containerRef = useRef(null)
   const [circles, setCircles] = useState([])
+  const [colorPalette, setColorPalette] = useState([])
+  const [backgroundColors, setBackgroundColors] = useState([])
+  const [isAnimating, setIsAnimating] = useState(false)
   const [currentScale, setCurrentScale] = useState('C_MAJOR')
   const [wallDuration, setWallDurationState] = useState(getWallDuration())
   const [circleDuration, setCircleDurationState] = useState(getCircleDuration())
+  const [detune, setDetuneState] = useState(getDetune())
+  const [waveform, setWaveformState] = useState(getWaveform())
+  const [delayEnabled, setDelayEnabledState] = useState(getDelayEnabled())
+  const [delayTime, setDelayTimeState] = useState(getDelayTime())
+  const [delayFeedback, setDelayFeedbackState] = useState(getDelayFeedback())
+  const [delayMix, setDelayMixState] = useState(getDelayMix())
   const circleRefs = useRef(new Map())
   const circleStates = useRef(new Map())
   const tickerFunctions = useRef(new Map())
-  const collisionStates = useRef(new Map()) // Track circle collisions
-  const wallCollisionStates = useRef(new Map()) // Track wall collisions
-  const squishAnimations = useRef(new Map()) // Track active squish animations
+  const collisionStates = useRef(new Map())
+  const wallCollisionStates = useRef(new Map())
+  const squishAnimations = useRef(new Map())
+  const backgroundTimeline = useRef(null)
 
+  const generateGradient = (colors, progress) => {
+    // Convert HSL colors to HSLA with opacity
+    const gradientColors = colors.map(color => {
+      const [h, s, l] = color.match(/\d+/g)
+      return `hsla(${h}, ${s}%, ${l}%, 0.7)` // Reduced opacity for better blending
+    })
+
+    // Calculate continuous rotation angles with offset
+    const angles = gradientColors.map((_, i) => {
+      const baseAngle = (360 / 3) * i // Evenly space base angles
+      const rotationAngle = ((baseAngle + progress * 360) % 360).toFixed(2) // Full rotation based on progress
+      return rotationAngle
+    })
+    
+    return `
+      linear-gradient(${angles[0]}deg, 
+        ${gradientColors[0]} 0%, rgba(0,0,0,0) 70.71%),
+      linear-gradient(${angles[1]}deg, 
+        ${gradientColors[1]} 0%, rgba(0,0,0,0) 70.71%),
+      linear-gradient(${angles[2]}deg, 
+        ${gradientColors[2]} 0%, rgba(0,0,0,0) 70.71%)
+    `.trim().replace(/\s+/g, ' ')
+  }
+
+  const addToColorPalette = (color) => {
+    setColorPalette(prev => {
+      const newPalette = [...prev, color]
+      return newPalette.slice(-10) // Keep last 10 colors
+    })
+  }
+
+  // Effect to update background colors when color palette changes
+  useEffect(() => {
+    if (colorPalette.length >= 3 && !isAnimating) {
+      setIsAnimating(true)
+      setBackgroundColors([...colorPalette.slice(-3)]) // Take last 3 colors
+    }
+  }, [colorPalette])
+
+  // Effect to handle background animation
+  useEffect(() => {
+    if (!isAnimating || backgroundColors.length < 3) return
+
+    // Kill any existing timeline
+    if (backgroundTimeline.current) {
+      backgroundTimeline.current.kill()
+    }
+    
+    const timeline = gsap.timeline({ 
+      repeat: -1,
+      onUpdate: () => {
+        const progress = timeline.progress()
+        const gradient = generateGradient(backgroundColors, progress)
+        if (containerRef.current) {
+          containerRef.current.style.background = gradient
+        }
+      }
+    })
+
+    // Create a simple tween that drives the progress
+    timeline.to({}, {
+      duration: 30,
+      ease: "none"
+    })
+
+    backgroundTimeline.current = timeline
+
+    return () => {
+      if (backgroundTimeline.current) {
+        backgroundTimeline.current.kill()
+      }
+    }
+  }, [isAnimating, backgroundColors])
+
+  // Cleanup effect
   useEffect(() => {
     return () => {
+      if (backgroundTimeline.current) {
+        backgroundTimeline.current.kill()
+      }
       tickerFunctions.current.forEach(ticker => {
         gsap.ticker.remove(ticker)
       })
+      cleanupAudio()
     }
   }, [])
 
@@ -118,9 +229,46 @@ export default function BouncingCircles() {
     setCircleDuration(newDuration)
   }
 
+  const handleDetuneChange = (e) => {
+    const newDetune = Number(e.target.value)
+    setDetuneState(newDetune)
+    setDetune(newDetune)
+  }
+
+  const handleWaveformChange = (newWaveform) => {
+    setWaveformState(newWaveform)
+    setWaveform(newWaveform)
+  }
+
+  const handleDelayEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setDelayEnabledState(enabled)
+    setDelayEnabled(enabled)
+  }
+
+  const handleDelayTimeChange = (e) => {
+    const time = Number(e.target.value)
+    setDelayTimeState(time)
+    setDelayTime(time)
+  }
+
+  const handleDelayFeedbackChange = (e) => {
+    const amount = Number(e.target.value)
+    setDelayFeedbackState(amount)
+    setDelayFeedback(amount)
+  }
+
+  const handleDelayMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setDelayMixState(amount)
+    setDelayMix(amount)
+  }
+
   const generateRandomColor = () => {
     const hue = Math.random() * 360
-    return `hsl(${hue}, 70%, 50%)`
+    const color = `hsl(${hue}, 70%, 50%)`
+    addToColorPalette(color)
+    return color
   }
 
   const generateRandomSize = () => {
@@ -248,46 +396,45 @@ export default function BouncingCircles() {
           if (!containerRef.current) return
           
           const bounds = containerRef.current.getBoundingClientRect()
-          const circle = circleEl.getBoundingClientRect()
-          const state = circleStates.current.get(id)
+          const currentState = {...circleStates.current.get(id)} // Create new state object
           const collisions = collisionStates.current.get(id)
           const wallCollisions = wallCollisionStates.current.get(id)
           
           // Update position based on velocity
-          state.x += state.vx
-          state.y += state.vy
+          currentState.x += currentState.vx
+          currentState.y += currentState.vy
           
           // Check for collisions with container boundaries
-          const hitLeftRight = state.x <= state.radius || state.x >= bounds.width - state.radius
-          const hitTopBottom = state.y <= state.radius || state.y >= bounds.height - state.radius
+          const hitLeftRight = currentState.x <= currentState.radius || currentState.x >= bounds.width - currentState.radius
+          const hitTopBottom = currentState.y <= currentState.radius || currentState.y >= bounds.height - currentState.radius
 
           if (hitLeftRight) {
             if (!wallCollisions.x) {
-              const pan = calculatePan(state.x, bounds.width)
+              const pan = calculatePan(currentState.x, bounds.width)
               playWallCollisionBeep(pan)
               playSquishAnimation(circleEl, 'horizontal')
               wallCollisions.x = true
             }
-            state.vx *= -0.98 // Reverse direction with slight energy loss
+            currentState.vx *= -0.98 // Reverse direction with slight energy loss
           } else {
             wallCollisions.x = false
           }
           
           if (hitTopBottom) {
             if (!wallCollisions.y) {
-              const pan = calculatePan(state.x, bounds.width)
+              const pan = calculatePan(currentState.x, bounds.width)
               playWallCollisionBeep(pan)
               playSquishAnimation(circleEl, 'vertical')
               wallCollisions.y = true
             }
-            state.vy *= -0.98 // Reverse direction with slight energy loss
+            currentState.vy *= -0.98 // Reverse direction with slight energy loss
           } else {
             wallCollisions.y = false
           }
           
           // Keep circle within bounds
-          state.x = Math.max(state.radius, Math.min(state.x, bounds.width - state.radius))
-          state.y = Math.max(state.radius, Math.min(state.y, bounds.height - state.radius))
+          currentState.x = Math.max(currentState.radius, Math.min(currentState.x, bounds.width - currentState.radius))
+          currentState.y = Math.max(currentState.radius, Math.min(currentState.y, bounds.height - currentState.radius))
 
           // Clear old collision states
           collisions.clear()
@@ -295,20 +442,21 @@ export default function BouncingCircles() {
           // Check for collisions with other circles
           circleStates.current.forEach((otherState, otherId) => {
             if (otherId !== id) {
+              const otherStateCopy = {...otherState} // Create copy of other state
               if (checkCircleCollision(
-                state.x, state.y, state.radius,
-                otherState.x, otherState.y, otherState.radius
+                currentState.x, currentState.y, currentState.radius,
+                otherStateCopy.x, otherStateCopy.y, otherStateCopy.radius
               )) {
                 // Only play sound if this is a new collision
                 if (!collisions.has(otherId)) {
                   // Calculate average position for panning
-                  const avgX = (state.x + otherState.x) / 2
+                  const avgX = (currentState.x + otherStateCopy.x) / 2
                   const pan = calculatePan(avgX, bounds.width)
                   playCollisionBeep(pan)
 
                   // Calculate collision angle for squish animation
-                  const dx = otherState.x - state.x
-                  const dy = otherState.y - state.y
+                  const dx = otherStateCopy.x - currentState.x
+                  const dy = otherStateCopy.y - currentState.y
                   const angle = Math.atan2(dy, dx)
                   const otherCircleEl = circleRefs.current.get(otherId)
                   if (otherCircleEl) {
@@ -318,14 +466,19 @@ export default function BouncingCircles() {
                   collisions.add(otherId)
                   collisionStates.current.get(otherId)?.add(id)
                 }
-                resolveCollision(state, otherState)
+                resolveCollision(currentState, otherStateCopy)
+                circleStates.current.set(otherId, otherStateCopy) // Save updated other state
               }
             }
           })
           
+          // Save updated state
+          circleStates.current.set(id, currentState)
+          
+          // Update position
           gsap.set(circleEl, {
-            x: state.x,
-            y: state.y
+            x: currentState.x,
+            y: currentState.y
           })
         }
 
@@ -362,6 +515,27 @@ export default function BouncingCircles() {
             </button>
           ))}
         </div>
+        <div style={scaleButtonsStyles}>
+          {WAVEFORMS.map(wave => (
+            <button
+              key={wave.id}
+              onClick={() => handleWaveformChange(wave.id)}
+              style={{
+                ...buttonStyles,
+                backgroundColor: waveform === wave.id ? '#9333ea' : '#6b21a8',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#7e22ce'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 
+                  waveform === wave.id ? '#9333ea' : '#6b21a8'
+              }}
+            >
+              {wave.name}
+            </button>
+          ))}
+        </div>
         <div style={sliderContainerStyles}>
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
@@ -389,6 +563,88 @@ export default function BouncingCircles() {
               value={circleDuration}
               onChange={handleCircleDurationChange}
               style={sliderStyles}
+            />
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Detune: {detune} cents
+            </label>
+            <input
+              type="range"
+              min="-1200"
+              max="1200"
+              step="100"
+              value={detune}
+              onChange={handleDetuneChange}
+              style={sliderStyles}
+            />
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              <input
+                type="checkbox"
+                checked={delayEnabled}
+                onChange={handleDelayEnabledChange}
+                style={checkboxStyles}
+              />
+              Enable Delay
+            </label>
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Delay Time: {delayTime.toFixed(2)}s
+            </label>
+            <input
+              type="range"
+              min="0.1"
+              max="1.0"
+              step="0.1"
+              value={delayTime}
+              onChange={handleDelayTimeChange}
+              style={{
+                ...sliderStyles,
+                opacity: delayEnabled ? 1 : 0.5,
+                cursor: delayEnabled ? 'pointer' : 'not-allowed'
+              }}
+              disabled={!delayEnabled}
+            />
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Feedback: {(delayFeedback * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="0.9"
+              step="0.1"
+              value={delayFeedback}
+              onChange={handleDelayFeedbackChange}
+              style={{
+                ...sliderStyles,
+                opacity: delayEnabled ? 1 : 0.5,
+                cursor: delayEnabled ? 'pointer' : 'not-allowed'
+              }}
+              disabled={!delayEnabled}
+            />
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Mix: {(delayMix * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={delayMix}
+              onChange={handleDelayMixChange}
+              style={{
+                ...sliderStyles,
+                opacity: delayEnabled ? 1 : 0.5,
+                cursor: delayEnabled ? 'pointer' : 'not-allowed'
+              }}
+              disabled={!delayEnabled}
             />
           </div>
         </div>

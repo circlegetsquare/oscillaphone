@@ -1,6 +1,9 @@
 // Create an audio context
 let audioContext;
 
+// Keep track of active audio nodes for cleanup
+let activeNodes = new Set();
+
 const SCALES = {
   C_MAJOR: {
     name: "C Major",
@@ -72,10 +75,26 @@ const A_MINOR_GROUPS = {
   CIRCLE_HIGHER: ['A5', 'B5', 'C6', 'D6', 'E6', 'F6', 'G6']
 }
 
-// Keep track of current scale and sound durations
+// Available waveforms
+export const WAVEFORMS = [
+  { id: 'sine', name: 'Sine' },
+  { id: 'square', name: 'Square' },
+  { id: 'sawtooth', name: 'Sawtooth' },
+  { id: 'triangle', name: 'Triangle' }
+]
+
+// Keep track of current scale and sound parameters
 let currentScale = 'C_MAJOR'
 let wallSoundDuration = 0.25 // Default duration
 let circleSoundDuration = 0.25 // Default duration
+let detuneAmount = 0 // Default detune in cents
+let currentWaveform = 'sine' // Default waveform
+
+// Delay parameters
+let delayEnabled = false
+let delayTime = 0.3    // Default 300ms delay
+let delayFeedback = 0.3 // 30% feedback
+let delayMix = 0.3     // 30% wet signal
 
 const getRandomNote = (group) => {
   let noteNames;
@@ -96,20 +115,45 @@ const getRandomNote = (group) => {
   return SCALES[currentScale].notes[randomNoteName]
 }
 
+const cleanupAudioNodes = (nodes) => {
+  nodes.forEach(node => {
+    try {
+      node.disconnect();
+      activeNodes.delete(node);
+    } catch (e) {
+      console.warn('Error cleaning up audio node:', e);
+    }
+  });
+}
+
 const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0) => {
   // Initialize audio context on first interaction
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
 
-  // Create oscillator for beep sound
+  const nodes = new Set();
+
+  // Create audio nodes
   const oscillator = audioContext.createOscillator();
   const gainNode = audioContext.createGain();
   const pannerNode = audioContext.createStereoPanner();
+  const delayNode = audioContext.createDelay();
+  const feedbackNode = audioContext.createGain();
+  const wetGainNode = audioContext.createGain();
+  const dryGainNode = audioContext.createGain();
+
+  // Add nodes to tracking sets
+  [oscillator, gainNode, pannerNode, delayNode, feedbackNode, wetGainNode, dryGainNode]
+    .forEach(node => {
+      nodes.add(node);
+      activeNodes.add(node);
+    });
 
   // Set up oscillator
-  oscillator.type = 'sine';
+  oscillator.type = currentWaveform;
   oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+  oscillator.detune.setValueAtTime(detuneAmount, audioContext.currentTime);
   
   // Set up gain node for volume envelope
   gainNode.gain.setValueAtTime(0, audioContext.currentTime);
@@ -117,16 +161,41 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0) => {
   gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
 
   // Set up panner
-  pannerNode.pan.value = Math.max(-1, Math.min(1, pan)); // Clamp between -1 and 1
+  pannerNode.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), audioContext.currentTime);
 
-  // Connect nodes: oscillator -> gain -> panner -> destination
+  // Set up delay effect
+  delayNode.delayTime.setValueAtTime(delayTime, audioContext.currentTime);
+  feedbackNode.gain.setValueAtTime(delayFeedback, audioContext.currentTime);
+  wetGainNode.gain.setValueAtTime(delayEnabled ? delayMix : 0, audioContext.currentTime);
+  dryGainNode.gain.setValueAtTime(delayEnabled ? 1 - delayMix : 1, audioContext.currentTime);
+
+  // Connect nodes:
+  // Dry signal path
   oscillator.connect(gainNode);
-  gainNode.connect(pannerNode);
+  gainNode.connect(dryGainNode);
+  dryGainNode.connect(pannerNode);
+
+  // Wet (delay) signal path
+  gainNode.connect(delayNode);
+  delayNode.connect(wetGainNode);
+  wetGainNode.connect(pannerNode);
+
+  // Delay feedback loop
+  delayNode.connect(feedbackNode);
+  feedbackNode.connect(delayNode);
+
+  // Final output
   pannerNode.connect(audioContext.destination);
+
+  // Set up cleanup
+  const stopTime = audioContext.currentTime + duration + (delayEnabled ? delayTime * 4 : 0);
+  oscillator.onended = () => {
+    setTimeout(() => cleanupAudioNodes(nodes), (delayEnabled ? delayTime * 4000 : 0));
+  };
 
   // Start and stop
   oscillator.start(audioContext.currentTime);
-  oscillator.stop(audioContext.currentTime + duration);
+  oscillator.stop(stopTime);
 }
 
 // Convert x position to pan value (-1 to 1)
@@ -195,3 +264,54 @@ export const setCircleDuration = (duration) => {
 
 // Export circle duration getter
 export const getCircleDuration = () => circleSoundDuration
+
+// Export detune setter
+export const setDetune = (amount) => {
+  detuneAmount = Math.max(-1200, Math.min(1200, amount))
+}
+
+// Export detune getter
+export const getDetune = () => detuneAmount
+
+// Export waveform setter
+export const setWaveform = (waveform) => {
+  if (WAVEFORMS.find(w => w.id === waveform)) {
+    currentWaveform = waveform
+  }
+}
+
+// Export waveform getter
+export const getWaveform = () => currentWaveform
+
+// Export delay parameter setters
+export const setDelayEnabled = (enabled) => {
+  delayEnabled = enabled
+}
+
+export const setDelayTime = (time) => {
+  delayTime = Math.max(0.1, Math.min(1.0, time))
+}
+
+export const setDelayFeedback = (amount) => {
+  delayFeedback = Math.max(0, Math.min(0.9, amount))
+}
+
+export const setDelayMix = (amount) => {
+  delayMix = Math.max(0, Math.min(1.0, amount))
+}
+
+// Export delay parameter getters
+export const getDelayEnabled = () => delayEnabled
+export const getDelayTime = () => delayTime
+export const getDelayFeedback = () => delayFeedback
+export const getDelayMix = () => delayMix
+
+// Cleanup function for component unmount
+export const cleanup = () => {
+  cleanupAudioNodes(activeNodes);
+  activeNodes.clear();
+  if (audioContext) {
+    audioContext.close();
+    audioContext = null;
+  }
+}
