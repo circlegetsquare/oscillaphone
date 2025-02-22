@@ -1,8 +1,49 @@
-# React + Vite
+# Musical Bouncing Balls
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A fun interactive web app where you can create musical bouncing balls that make sounds when they collide. The background creates beautiful gradients based on the colors of the balls.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Create colorful bouncing balls by clicking anywhere
+- Musical sounds on ball creation and collisions
+- Dynamic background that changes with ball colors
+- Adjustable sound settings:
+  - Different musical scales
+  - Various waveform types
+  - Sound duration controls
+  - Delay effect options
+
+## Quick Start
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Start the development server:
+```bash
+npm run dev
+```
+
+3. Open http://localhost:5173 in your browser
+
+## How to Play
+
+- Click anywhere to create a ball
+- Watch the balls bounce and collide
+- Use the control panel to:
+  - Change musical scales
+  - Switch sound types
+  - Adjust sound effects
+  - Control delay settings
+
+## Built With
+
+- React
+- GSAP for animations
+- Web Audio API for sound
+- Vite for development
+
+## License
+
+MIT License
