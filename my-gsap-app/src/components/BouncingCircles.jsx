@@ -105,9 +105,16 @@ const checkboxStyles = {
 export default function BouncingCircles() {
   const containerRef = useRef(null)
   const [circles, setCircles] = useState([])
-  const [colorPalette, setColorPalette] = useState([])
-  const [backgroundColors, setBackgroundColors] = useState([])
-  const [isAnimating, setIsAnimating] = useState(false)
+  const generateInitialColors = () => {
+    return Array(3).fill().map(() => {
+      const hue = Math.random() * 360
+      return `hsl(${hue}, 70%, 50%)`
+    })
+  }
+  
+  const [colorPalette, setColorPalette] = useState(generateInitialColors())
+  const [backgroundColors, setBackgroundColors] = useState(generateInitialColors())
+  const [isAnimating, setIsAnimating] = useState(true)
   const [currentScale, setCurrentScale] = useState('C_MAJOR')
   const [wallDuration, setWallDurationState] = useState(getWallDuration())
   const [circleDuration, setCircleDurationState] = useState(getCircleDuration())
@@ -345,11 +352,6 @@ export default function BouncingCircles() {
     console.log('Mouse down event:', e.clientX, e.clientY)
     
     const bounds = containerRef.current.getBoundingClientRect()
-    const pan = calculatePan(e.clientX - bounds.left, bounds.width)
-    
-    // Play beep sound with panning based on click position
-    playBeep(pan)
-    
     const id = Date.now()
     const angle = Math.random() * 360
     const size = generateRandomSize()
