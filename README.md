@@ -1,6 +1,6 @@
-# Musical Bouncing Balls
+# BoingBoing
 
-A fun interactive web app where you can create musical bouncing balls that make sounds when they collide. The background creates beautiful gradients based on the colors of the balls.
+Let's vibe out.
 
 ## Features
 
