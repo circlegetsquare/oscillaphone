@@ -21,6 +21,13 @@ import {
   // Legacy detune parameters
   setDetune,
   getDetune,
+  // Wall waveform parameters
+  setWallWaveform,
+  getWallWaveform,
+  // Circle waveform parameters
+  setCircleWaveform,
+  getCircleWaveform,
+  // Legacy waveform parameters
   setWaveform,
   getWaveform,
   // Wall delay parameters
@@ -146,7 +153,8 @@ export default function BouncingCircles() {
   const [circleDuration, setCircleDurationState] = useState(getCircleDuration())
   const [wallDetune, setWallDetuneState] = useState(getWallDetune())
   const [circleDetune, setCircleDetuneState] = useState(getCircleDetune())
-  const [waveform, setWaveformState] = useState(getWaveform())
+  const [wallWaveform, setWallWaveformState] = useState(getWallWaveform())
+  const [circleWaveform, setCircleWaveformState] = useState(getCircleWaveform())
   // Wall delay state
   const [wallDelayEnabled, setWallDelayEnabledState] = useState(getWallDelayEnabled())
   const [wallDelayTime, setWallDelayTimeState] = useState(getWallDelayTime())
@@ -282,9 +290,14 @@ export default function BouncingCircles() {
     setCircleDetune(newDetune)
   }
 
-  const handleWaveformChange = (newWaveform) => {
-    setWaveformState(newWaveform)
-    setWaveform(newWaveform)
+  const handleWallWaveformChange = (newWaveform) => {
+    setWallWaveformState(newWaveform)
+    setWallWaveform(newWaveform)
+  }
+
+  const handleCircleWaveformChange = (newWaveform) => {
+    setCircleWaveformState(newWaveform)
+    setCircleWaveform(newWaveform)
   }
 
   // Wall delay handlers
@@ -583,26 +596,57 @@ export default function BouncingCircles() {
             </button>
           ))}
         </div>
-        <div style={scaleButtonsStyles}>
-          {WAVEFORMS.map(wave => (
-            <button
-              key={wave.id}
-              onClick={() => handleWaveformChange(wave.id)}
-              style={{
-                ...buttonStyles,
-                backgroundColor: waveform === wave.id ? '#9333ea' : '#6b21a8',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#7e22ce'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 
-                  waveform === wave.id ? '#9333ea' : '#6b21a8'
-              }}
-            >
-              {wave.name}
-            </button>
-          ))}
+        <div>
+          <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginBottom: '8px'}}>
+            Wall Sound Waveform
+          </label>
+          <div style={scaleButtonsStyles}>
+            {WAVEFORMS.map(wave => (
+              <button
+                key={wave.id}
+                onClick={() => handleWallWaveformChange(wave.id)}
+                style={{
+                  ...buttonStyles,
+                  backgroundColor: wallWaveform === wave.id ? '#9333ea' : '#6b21a8',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#7e22ce'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 
+                    wallWaveform === wave.id ? '#9333ea' : '#6b21a8'
+                }}
+              >
+                {wave.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginTop: '12px', marginBottom: '8px'}}>
+            Ball Collision Waveform
+          </label>
+          <div style={scaleButtonsStyles}>
+            {WAVEFORMS.map(wave => (
+              <button
+                key={wave.id}
+                onClick={() => handleCircleWaveformChange(wave.id)}
+                style={{
+                  ...buttonStyles,
+                  backgroundColor: circleWaveform === wave.id ? '#9333ea' : '#6b21a8',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#7e22ce'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 
+                    circleWaveform === wave.id ? '#9333ea' : '#6b21a8'
+                }}
+              >
+                {wave.name}
+              </button>
+            ))}
+          </div>
         </div>
         <div style={sliderContainerStyles}>
           <div style={sliderGroupStyles}>

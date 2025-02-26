@@ -89,7 +89,8 @@ let wallSoundDuration = 0.25 // Default duration
 let circleSoundDuration = 0.25 // Default duration
 let wallDetuneAmount = 0 // Default detune for wall sounds
 let circleDetuneAmount = 0 // Default detune for circle sounds
-let currentWaveform = 'sine' // Default waveform
+let wallWaveform = 'sine' // Default waveform for wall sounds
+let circleWaveform = 'sine' // Default waveform for circle sounds
 
 // Delay parameters for wall sounds
 let wallDelayEnabled = false
@@ -158,7 +159,8 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
     });
 
   // Set up oscillator
-  oscillator.type = currentWaveform;
+  const useWaveform = soundType === 'wall' ? wallWaveform : circleWaveform;
+  oscillator.type = useWaveform;
   oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
   const useDetuneAmount = soundType === 'wall' ? wallDetuneAmount : circleDetuneAmount;
   oscillator.detune.setValueAtTime(useDetuneAmount, audioContext.currentTime);
@@ -301,15 +303,33 @@ export const setDetune = (amount) => {
 
 export const getDetune = () => circleDetuneAmount // Return circle value for consistency
 
-// Export waveform setter
-export const setWaveform = (waveform) => {
+// Wall waveform setter/getter
+export const setWallWaveform = (waveform) => {
   if (WAVEFORMS.find(w => w.id === waveform)) {
-    currentWaveform = waveform
+    wallWaveform = waveform
   }
 }
 
-// Export waveform getter
-export const getWaveform = () => currentWaveform
+export const getWallWaveform = () => wallWaveform
+
+// Circle waveform setter/getter
+export const setCircleWaveform = (waveform) => {
+  if (WAVEFORMS.find(w => w.id === waveform)) {
+    circleWaveform = waveform
+  }
+}
+
+export const getCircleWaveform = () => circleWaveform
+
+// Legacy waveform setter/getter (affects both)
+export const setWaveform = (waveform) => {
+  if (WAVEFORMS.find(w => w.id === waveform)) {
+    wallWaveform = waveform
+    circleWaveform = waveform
+  }
+}
+
+export const getWaveform = () => circleWaveform // Return circle value for consistency
 
 // Wall delay parameter setters
 export const setWallDelayEnabled = (enabled) => {
