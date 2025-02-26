@@ -575,83 +575,72 @@ export default function BouncingCircles() {
   return (
     <>
       <div style={controlsContainerStyles}>
-        <div style={scaleButtonsStyles}>
-          {AVAILABLE_SCALES.map(scale => (
-            <button
-              key={scale.id}
-              onClick={() => handleScaleChange(scale.id)}
-              style={{
-                ...buttonStyles,
-                backgroundColor: currentScale === scale.id ? '#9333ea' : '#6b21a8',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#7e22ce'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 
-                  currentScale === scale.id ? '#9333ea' : '#6b21a8'
-              }}
-            >
-              {scale.name}
-            </button>
-          ))}
-        </div>
-        <div>
-          <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginBottom: '8px'}}>
-            Wall Sound Waveform
+        {/* Global Controls - Musical Scale */}
+        <div style={{marginBottom: '20px'}}>
+          <label style={{...labelStyles, fontWeight: 'bold', fontSize: '16px', marginBottom: '8px', display: 'block'}}>
+            Musical Scale
           </label>
           <div style={scaleButtonsStyles}>
-            {WAVEFORMS.map(wave => (
+            {AVAILABLE_SCALES.map(scale => (
               <button
-                key={wave.id}
-                onClick={() => handleWallWaveformChange(wave.id)}
+                key={scale.id}
+                onClick={() => handleScaleChange(scale.id)}
                 style={{
                   ...buttonStyles,
-                  backgroundColor: wallWaveform === wave.id ? '#9333ea' : '#6b21a8',
+                  backgroundColor: currentScale === scale.id ? '#9333ea' : '#6b21a8',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = '#7e22ce'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 
-                    wallWaveform === wave.id ? '#9333ea' : '#6b21a8'
+                    currentScale === scale.id ? '#9333ea' : '#6b21a8'
                 }}
               >
-                {wave.name}
+                {scale.name}
               </button>
             ))}
           </div>
         </div>
-        <div>
-          <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginTop: '12px', marginBottom: '8px'}}>
-            Ball Collision Waveform
+
+        {/* Wall Sound Controls */}
+        <div style={{marginBottom: '20px', padding: '12px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px'}}>
+          <label style={{...labelStyles, fontWeight: 'bold', fontSize: '16px', marginBottom: '12px', display: 'block'}}>
+            Wall Sound Controls
           </label>
-          <div style={scaleButtonsStyles}>
-            {WAVEFORMS.map(wave => (
-              <button
-                key={wave.id}
-                onClick={() => handleCircleWaveformChange(wave.id)}
-                style={{
-                  ...buttonStyles,
-                  backgroundColor: circleWaveform === wave.id ? '#9333ea' : '#6b21a8',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#7e22ce'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 
-                    circleWaveform === wave.id ? '#9333ea' : '#6b21a8'
-                }}
-              >
-                {wave.name}
-              </button>
-            ))}
+          
+          {/* Wall Waveform */}
+          <div style={{marginBottom: '16px'}}>
+            <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginBottom: '8px'}}>
+              Waveform
+            </label>
+            <div style={scaleButtonsStyles}>
+              {WAVEFORMS.map(wave => (
+                <button
+                  key={wave.id}
+                  onClick={() => handleWallWaveformChange(wave.id)}
+                  style={{
+                    ...buttonStyles,
+                    backgroundColor: wallWaveform === wave.id ? '#9333ea' : '#6b21a8',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#7e22ce'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 
+                      wallWaveform === wave.id ? '#9333ea' : '#6b21a8'
+                  }}
+                >
+                  {wave.name}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div style={sliderContainerStyles}>
+          
+          {/* Wall Duration */}
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Wall Sound Duration: {wallDuration.toFixed(2)}s
+              Duration: {wallDuration.toFixed(2)}s
             </label>
             <input
               type="range"
@@ -663,23 +652,11 @@ export default function BouncingCircles() {
               style={sliderStyles}
             />
           </div>
+          
+          {/* Wall Detune */}
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Ball Collision Duration: {circleDuration.toFixed(2)}s
-            </label>
-            <input
-              type="range"
-              min="0.05"
-              max="1.0"
-              step="0.05"
-              value={circleDuration}
-              onChange={handleCircleDurationChange}
-              style={sliderStyles}
-            />
-          </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Wall Sound Detune: {wallDetune} cents
+              Detune: {wallDetune} cents
             </label>
             <input
               type="range"
@@ -691,9 +668,127 @@ export default function BouncingCircles() {
               style={sliderStyles}
             />
           </div>
+          
+          {/* Wall Delay Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Delay Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={wallDelayEnabled}
+                  onChange={handleWallDelayEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Delay
+              </label>
+            </div>
+            
+            {wallDelayEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Delay Time: {wallDelayTime.toFixed(2)}s
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.1"
+                    value={wallDelayTime}
+                    onChange={handleWallDelayTimeChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Feedback: {(wallDelayFeedback * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.9"
+                    step="0.1"
+                    value={wallDelayFeedback}
+                    onChange={handleWallDelayFeedbackChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(wallDelayMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={wallDelayMix}
+                    onChange={handleWallDelayMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+        
+        {/* Ball Collision Sound Controls */}
+        <div style={{padding: '12px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px'}}>
+          <label style={{...labelStyles, fontWeight: 'bold', fontSize: '16px', marginBottom: '12px', display: 'block'}}>
+            Ball Collision Sound Controls
+          </label>
+          
+          {/* Ball Waveform */}
+          <div style={{marginBottom: '16px'}}>
+            <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginBottom: '8px'}}>
+              Waveform
+            </label>
+            <div style={scaleButtonsStyles}>
+              {WAVEFORMS.map(wave => (
+                <button
+                  key={wave.id}
+                  onClick={() => handleCircleWaveformChange(wave.id)}
+                  style={{
+                    ...buttonStyles,
+                    backgroundColor: circleWaveform === wave.id ? '#9333ea' : '#6b21a8',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#7e22ce'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 
+                      circleWaveform === wave.id ? '#9333ea' : '#6b21a8'
+                  }}
+                >
+                  {wave.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Ball Duration */}
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Ball Collision Detune: {circleDetune} cents
+              Duration: {circleDuration.toFixed(2)}s
+            </label>
+            <input
+              type="range"
+              min="0.05"
+              max="1.0"
+              step="0.05"
+              value={circleDuration}
+              onChange={handleCircleDurationChange}
+              style={sliderStyles}
+            />
+          </div>
+          
+          {/* Ball Detune */}
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Detune: {circleDetune} cents
             </label>
             <input
               type="range"
@@ -705,150 +800,70 @@ export default function BouncingCircles() {
               style={sliderStyles}
             />
           </div>
-          {/* Wall Delay Controls */}
-          <div style={sliderGroupStyles}>
-            <label style={{...labelStyles, fontWeight: 'bold'}}>
-              Wall Collision Delay
-            </label>
-            <label style={labelStyles}>
-              <input
-                type="checkbox"
-                checked={wallDelayEnabled}
-                onChange={handleWallDelayEnabledChange}
-                style={checkboxStyles}
-              />
-              Enable Wall Delay
-            </label>
-          </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Wall Delay Time: {wallDelayTime.toFixed(2)}s
-            </label>
-            <input
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.1"
-              value={wallDelayTime}
-              onChange={handleWallDelayTimeChange}
-              style={{
-                ...sliderStyles,
-                opacity: wallDelayEnabled ? 1 : 0.5,
-                cursor: wallDelayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!wallDelayEnabled}
-            />
-          </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Wall Feedback: {(wallDelayFeedback * 100).toFixed(0)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="0.9"
-              step="0.1"
-              value={wallDelayFeedback}
-              onChange={handleWallDelayFeedbackChange}
-              style={{
-                ...sliderStyles,
-                opacity: wallDelayEnabled ? 1 : 0.5,
-                cursor: wallDelayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!wallDelayEnabled}
-            />
-          </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Wall Mix: {(wallDelayMix * 100).toFixed(0)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={wallDelayMix}
-              onChange={handleWallDelayMixChange}
-              style={{
-                ...sliderStyles,
-                opacity: wallDelayEnabled ? 1 : 0.5,
-                cursor: wallDelayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!wallDelayEnabled}
-            />
-          </div>
           
-          {/* Circle Delay Controls */}
-          <div style={sliderGroupStyles}>
-            <label style={{...labelStyles, fontWeight: 'bold', marginTop: '16px'}}>
-              Ball Collision Delay
-            </label>
-            <label style={labelStyles}>
-              <input
-                type="checkbox"
-                checked={circleDelayEnabled}
-                onChange={handleCircleDelayEnabledChange}
-                style={checkboxStyles}
-              />
-              Enable Ball Delay
-            </label>
-          </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Ball Delay Time: {circleDelayTime.toFixed(2)}s
-            </label>
-            <input
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.1"
-              value={circleDelayTime}
-              onChange={handleCircleDelayTimeChange}
-              style={{
-                ...sliderStyles,
-                opacity: circleDelayEnabled ? 1 : 0.5,
-                cursor: circleDelayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!circleDelayEnabled}
-            />
-          </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Ball Feedback: {(circleDelayFeedback * 100).toFixed(0)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="0.9"
-              step="0.1"
-              value={circleDelayFeedback}
-              onChange={handleCircleDelayFeedbackChange}
-              style={{
-                ...sliderStyles,
-                opacity: circleDelayEnabled ? 1 : 0.5,
-                cursor: circleDelayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!circleDelayEnabled}
-            />
-          </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Ball Mix: {(circleDelayMix * 100).toFixed(0)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={circleDelayMix}
-              onChange={handleCircleDelayMixChange}
-              style={{
-                ...sliderStyles,
-                opacity: circleDelayEnabled ? 1 : 0.5,
-                cursor: circleDelayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!circleDelayEnabled}
-            />
+          {/* Ball Delay Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Delay Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={circleDelayEnabled}
+                  onChange={handleCircleDelayEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Delay
+              </label>
+            </div>
+            
+            {circleDelayEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Delay Time: {circleDelayTime.toFixed(2)}s
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.1"
+                    value={circleDelayTime}
+                    onChange={handleCircleDelayTimeChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Feedback: {(circleDelayFeedback * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.9"
+                    step="0.1"
+                    value={circleDelayFeedback}
+                    onChange={handleCircleDelayFeedbackChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(circleDelayMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={circleDelayMix}
+                    onChange={handleCircleDelayMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
