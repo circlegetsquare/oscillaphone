@@ -87,7 +87,8 @@ export const WAVEFORMS = [
 let currentScale = 'C_MAJOR'
 let wallSoundDuration = 0.25 // Default duration
 let circleSoundDuration = 0.25 // Default duration
-let detuneAmount = 0 // Default detune in cents
+let wallDetuneAmount = 0 // Default detune for wall sounds
+let circleDetuneAmount = 0 // Default detune for circle sounds
 let currentWaveform = 'sine' // Default waveform
 
 // Delay parameters for wall sounds
@@ -159,7 +160,8 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
   // Set up oscillator
   oscillator.type = currentWaveform;
   oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-  oscillator.detune.setValueAtTime(detuneAmount, audioContext.currentTime);
+  const useDetuneAmount = soundType === 'wall' ? wallDetuneAmount : circleDetuneAmount;
+  oscillator.detune.setValueAtTime(useDetuneAmount, audioContext.currentTime);
   
   // Set up gain node for volume envelope
   gainNode.gain.setValueAtTime(0, audioContext.currentTime);
@@ -276,13 +278,28 @@ export const setCircleDuration = (duration) => {
 // Export circle duration getter
 export const getCircleDuration = () => circleSoundDuration
 
-// Export detune setter
-export const setDetune = (amount) => {
-  detuneAmount = Math.max(-1200, Math.min(1200, amount))
+// Wall detune setter/getter
+export const setWallDetune = (amount) => {
+  wallDetuneAmount = Math.max(-1200, Math.min(1200, amount))
 }
 
-// Export detune getter
-export const getDetune = () => detuneAmount
+export const getWallDetune = () => wallDetuneAmount
+
+// Circle detune setter/getter
+export const setCircleDetune = (amount) => {
+  circleDetuneAmount = Math.max(-1200, Math.min(1200, amount))
+}
+
+export const getCircleDetune = () => circleDetuneAmount
+
+// Legacy detune setter/getter (affects both)
+export const setDetune = (amount) => {
+  const clampedAmount = Math.max(-1200, Math.min(1200, amount))
+  wallDetuneAmount = clampedAmount
+  circleDetuneAmount = clampedAmount
+}
+
+export const getDetune = () => circleDetuneAmount // Return circle value for consistency
 
 // Export waveform setter
 export const setWaveform = (waveform) => {

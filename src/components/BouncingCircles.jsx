@@ -12,6 +12,13 @@ import {
   getWallDuration,
   setCircleDuration,
   getCircleDuration,
+  // Wall detune parameters
+  setWallDetune,
+  getWallDetune,
+  // Circle detune parameters
+  setCircleDetune,
+  getCircleDetune,
+  // Legacy detune parameters
   setDetune,
   getDetune,
   setWaveform,
@@ -137,7 +144,8 @@ export default function BouncingCircles() {
   const [currentScale, setCurrentScale] = useState('C_MAJOR')
   const [wallDuration, setWallDurationState] = useState(getWallDuration())
   const [circleDuration, setCircleDurationState] = useState(getCircleDuration())
-  const [detune, setDetuneState] = useState(getDetune())
+  const [wallDetune, setWallDetuneState] = useState(getWallDetune())
+  const [circleDetune, setCircleDetuneState] = useState(getCircleDetune())
   const [waveform, setWaveformState] = useState(getWaveform())
   // Wall delay state
   const [wallDelayEnabled, setWallDelayEnabledState] = useState(getWallDelayEnabled())
@@ -262,10 +270,16 @@ export default function BouncingCircles() {
     setCircleDuration(newDuration)
   }
 
-  const handleDetuneChange = (e) => {
+  const handleWallDetuneChange = (e) => {
     const newDetune = Number(e.target.value)
-    setDetuneState(newDetune)
-    setDetune(newDetune)
+    setWallDetuneState(newDetune)
+    setWallDetune(newDetune)
+  }
+
+  const handleCircleDetuneChange = (e) => {
+    const newDetune = Number(e.target.value)
+    setCircleDetuneState(newDetune)
+    setCircleDetune(newDetune)
   }
 
   const handleWaveformChange = (newWaveform) => {
@@ -621,15 +635,29 @@ export default function BouncingCircles() {
           </div>
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Detune: {detune} cents
+              Wall Sound Detune: {wallDetune} cents
             </label>
             <input
               type="range"
               min="-1200"
               max="1200"
               step="100"
-              value={detune}
-              onChange={handleDetuneChange}
+              value={wallDetune}
+              onChange={handleWallDetuneChange}
+              style={sliderStyles}
+            />
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Ball Collision Detune: {circleDetune} cents
+            </label>
+            <input
+              type="range"
+              min="-1200"
+              max="1200"
+              step="100"
+              value={circleDetune}
+              onChange={handleCircleDetuneChange}
               style={sliderStyles}
             />
           </div>
