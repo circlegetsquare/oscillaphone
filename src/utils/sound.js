@@ -90,11 +90,17 @@ let circleSoundDuration = 0.25 // Default duration
 let detuneAmount = 0 // Default detune in cents
 let currentWaveform = 'sine' // Default waveform
 
-// Delay parameters
-let delayEnabled = false
-let delayTime = 0.3    // Default 300ms delay
-let delayFeedback = 0.3 // 30% feedback
-let delayMix = 0.3     // 30% wet signal
+// Delay parameters for wall sounds
+let wallDelayEnabled = false
+let wallDelayTime = 0.3    // Default 300ms delay
+let wallDelayFeedback = 0.3 // 30% feedback
+let wallDelayMix = 0.3     // 30% wet signal
+
+// Delay parameters for circle sounds
+let circleDelayEnabled = false
+let circleDelayTime = 0.3    // Default 300ms delay
+let circleDelayFeedback = 0.3 // 30% feedback
+let circleDelayMix = 0.3     // 30% wet signal
 
 const getRandomNote = (group) => {
   let noteNames;
@@ -126,7 +132,7 @@ const cleanupAudioNodes = (nodes) => {
   });
 }
 
-const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0) => {
+const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType = 'circle') => {
   // Initialize audio context on first interaction
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -163,11 +169,16 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0) => {
   // Set up panner
   pannerNode.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), audioContext.currentTime);
 
-  // Set up delay effect
-  delayNode.delayTime.setValueAtTime(delayTime, audioContext.currentTime);
-  feedbackNode.gain.setValueAtTime(delayFeedback, audioContext.currentTime);
-  wetGainNode.gain.setValueAtTime(delayEnabled ? delayMix : 0, audioContext.currentTime);
-  dryGainNode.gain.setValueAtTime(delayEnabled ? 1 - delayMix : 1, audioContext.currentTime);
+  // Set up delay effect based on sound type
+  const useDelayEnabled = soundType === 'wall' ? wallDelayEnabled : circleDelayEnabled;
+  const useDelayTime = soundType === 'wall' ? wallDelayTime : circleDelayTime;
+  const useDelayFeedback = soundType === 'wall' ? wallDelayFeedback : circleDelayFeedback;
+  const useDelayMix = soundType === 'wall' ? wallDelayMix : circleDelayMix;
+  
+  delayNode.delayTime.setValueAtTime(useDelayTime, audioContext.currentTime);
+  feedbackNode.gain.setValueAtTime(useDelayFeedback, audioContext.currentTime);
+  wetGainNode.gain.setValueAtTime(useDelayEnabled ? useDelayMix : 0, audioContext.currentTime);
+  dryGainNode.gain.setValueAtTime(useDelayEnabled ? 1 - useDelayMix : 1, audioContext.currentTime);
 
   // Connect nodes:
   // Dry signal path
@@ -188,9 +199,9 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0) => {
   pannerNode.connect(audioContext.destination);
 
   // Set up cleanup
-  const stopTime = audioContext.currentTime + duration + (delayEnabled ? delayTime * 4 : 0);
+  const stopTime = audioContext.currentTime + duration + (useDelayEnabled ? useDelayTime * 4 : 0);
   oscillator.onended = () => {
-    setTimeout(() => cleanupAudioNodes(nodes), (delayEnabled ? delayTime * 4000 : 0));
+    setTimeout(() => cleanupAudioNodes(nodes), (useDelayEnabled ? useDelayTime * 4000 : 0));
   };
 
   // Start and stop
@@ -224,16 +235,16 @@ export const playBeep = (pan = 0) => {
 
 // Get a random note for circle collisions
 export const playCollisionBeep = (pan = 0) => {
-  const group = Math.random() < 0.5 ? 'CIRCLE_HIGH' : 'CIRCLE_HIGHER'
-  const note = getRandomNote(group)
-  createBeep(note, circleSoundDuration, 0.2, pan)
+  const group = Math.random() < 0.5 ? 'CIRCLE_HIGH' : 'CIRCLE_HIGHER';
+  const note = getRandomNote(group);
+  createBeep(note, circleSoundDuration, 0.2, pan, 'circle');
 }
 
 // Get a random note for wall collisions
 export const playWallCollisionBeep = (pan = 0) => {
-  const group = Math.random() < 0.5 ? 'WALL_LOW' : 'WALL_MID'
-  const note = getRandomNote(group)
-  createBeep(note, wallSoundDuration, 0.15, pan)
+  const group = Math.random() < 0.5 ? 'WALL_LOW' : 'WALL_MID';
+  const note = getRandomNote(group);
+  createBeep(note, wallSoundDuration, 0.15, pan, 'wall');
 }
 
 // Export scales for UI
@@ -283,28 +294,81 @@ export const setWaveform = (waveform) => {
 // Export waveform getter
 export const getWaveform = () => currentWaveform
 
-// Export delay parameter setters
+// Wall delay parameter setters
+export const setWallDelayEnabled = (enabled) => {
+  wallDelayEnabled = enabled
+}
+
+export const setWallDelayTime = (time) => {
+  wallDelayTime = Math.max(0.1, Math.min(1.0, time))
+}
+
+export const setWallDelayFeedback = (amount) => {
+  wallDelayFeedback = Math.max(0, Math.min(0.9, amount))
+}
+
+export const setWallDelayMix = (amount) => {
+  wallDelayMix = Math.max(0, Math.min(1.0, amount))
+}
+
+// Wall delay parameter getters
+export const getWallDelayEnabled = () => wallDelayEnabled
+export const getWallDelayTime = () => wallDelayTime
+export const getWallDelayFeedback = () => wallDelayFeedback
+export const getWallDelayMix = () => wallDelayMix
+
+// Circle delay parameter setters
+export const setCircleDelayEnabled = (enabled) => {
+  circleDelayEnabled = enabled
+}
+
+export const setCircleDelayTime = (time) => {
+  circleDelayTime = Math.max(0.1, Math.min(1.0, time))
+}
+
+export const setCircleDelayFeedback = (amount) => {
+  circleDelayFeedback = Math.max(0, Math.min(0.9, amount))
+}
+
+export const setCircleDelayMix = (amount) => {
+  circleDelayMix = Math.max(0, Math.min(1.0, amount))
+}
+
+// Circle delay parameter getters
+export const getCircleDelayEnabled = () => circleDelayEnabled
+export const getCircleDelayTime = () => circleDelayTime
+export const getCircleDelayFeedback = () => circleDelayFeedback
+export const getCircleDelayMix = () => circleDelayMix
+
+// Legacy delay parameter setters (affect both wall and circle)
 export const setDelayEnabled = (enabled) => {
-  delayEnabled = enabled
+  wallDelayEnabled = enabled
+  circleDelayEnabled = enabled
 }
 
 export const setDelayTime = (time) => {
-  delayTime = Math.max(0.1, Math.min(1.0, time))
+  const clampedTime = Math.max(0.1, Math.min(1.0, time))
+  wallDelayTime = clampedTime
+  circleDelayTime = clampedTime
 }
 
 export const setDelayFeedback = (amount) => {
-  delayFeedback = Math.max(0, Math.min(0.9, amount))
+  const clampedAmount = Math.max(0, Math.min(0.9, amount))
+  wallDelayFeedback = clampedAmount
+  circleDelayFeedback = clampedAmount
 }
 
 export const setDelayMix = (amount) => {
-  delayMix = Math.max(0, Math.min(1.0, amount))
+  const clampedAmount = Math.max(0, Math.min(1.0, amount))
+  wallDelayMix = clampedAmount
+  circleDelayMix = clampedAmount
 }
 
-// Export delay parameter getters
-export const getDelayEnabled = () => delayEnabled
-export const getDelayTime = () => delayTime
-export const getDelayFeedback = () => delayFeedback
-export const getDelayMix = () => delayMix
+// Legacy delay parameter getters (return circle values for consistency)
+export const getDelayEnabled = () => circleDelayEnabled
+export const getDelayTime = () => circleDelayTime
+export const getDelayFeedback = () => circleDelayFeedback
+export const getDelayMix = () => circleDelayMix
 
 // Cleanup function for component unmount
 export const cleanup = () => {

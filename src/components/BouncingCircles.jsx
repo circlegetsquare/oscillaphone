@@ -16,6 +16,25 @@ import {
   getDetune,
   setWaveform,
   getWaveform,
+  // Wall delay parameters
+  setWallDelayEnabled,
+  getWallDelayEnabled,
+  setWallDelayTime,
+  getWallDelayTime,
+  setWallDelayFeedback,
+  getWallDelayFeedback,
+  setWallDelayMix,
+  getWallDelayMix,
+  // Circle delay parameters
+  setCircleDelayEnabled,
+  getCircleDelayEnabled,
+  setCircleDelayTime,
+  getCircleDelayTime,
+  setCircleDelayFeedback,
+  getCircleDelayFeedback,
+  setCircleDelayMix,
+  getCircleDelayMix,
+  // Legacy delay parameters (for backward compatibility)
   setDelayEnabled,
   getDelayEnabled,
   setDelayTime,
@@ -120,10 +139,17 @@ export default function BouncingCircles() {
   const [circleDuration, setCircleDurationState] = useState(getCircleDuration())
   const [detune, setDetuneState] = useState(getDetune())
   const [waveform, setWaveformState] = useState(getWaveform())
-  const [delayEnabled, setDelayEnabledState] = useState(getDelayEnabled())
-  const [delayTime, setDelayTimeState] = useState(getDelayTime())
-  const [delayFeedback, setDelayFeedbackState] = useState(getDelayFeedback())
-  const [delayMix, setDelayMixState] = useState(getDelayMix())
+  // Wall delay state
+  const [wallDelayEnabled, setWallDelayEnabledState] = useState(getWallDelayEnabled())
+  const [wallDelayTime, setWallDelayTimeState] = useState(getWallDelayTime())
+  const [wallDelayFeedback, setWallDelayFeedbackState] = useState(getWallDelayFeedback())
+  const [wallDelayMix, setWallDelayMixState] = useState(getWallDelayMix())
+  
+  // Circle delay state
+  const [circleDelayEnabled, setCircleDelayEnabledState] = useState(getCircleDelayEnabled())
+  const [circleDelayTime, setCircleDelayTimeState] = useState(getCircleDelayTime())
+  const [circleDelayFeedback, setCircleDelayFeedbackState] = useState(getCircleDelayFeedback())
+  const [circleDelayMix, setCircleDelayMixState] = useState(getCircleDelayMix())
   const circleRefs = useRef(new Map())
   const circleStates = useRef(new Map())
   const tickerFunctions = useRef(new Map())
@@ -247,28 +273,54 @@ export default function BouncingCircles() {
     setWaveform(newWaveform)
   }
 
-  const handleDelayEnabledChange = (e) => {
+  // Wall delay handlers
+  const handleWallDelayEnabledChange = (e) => {
     const enabled = e.target.checked
-    setDelayEnabledState(enabled)
-    setDelayEnabled(enabled)
+    setWallDelayEnabledState(enabled)
+    setWallDelayEnabled(enabled)
   }
 
-  const handleDelayTimeChange = (e) => {
+  const handleWallDelayTimeChange = (e) => {
     const time = Number(e.target.value)
-    setDelayTimeState(time)
-    setDelayTime(time)
+    setWallDelayTimeState(time)
+    setWallDelayTime(time)
   }
 
-  const handleDelayFeedbackChange = (e) => {
+  const handleWallDelayFeedbackChange = (e) => {
     const amount = Number(e.target.value)
-    setDelayFeedbackState(amount)
-    setDelayFeedback(amount)
+    setWallDelayFeedbackState(amount)
+    setWallDelayFeedback(amount)
   }
 
-  const handleDelayMixChange = (e) => {
+  const handleWallDelayMixChange = (e) => {
     const amount = Number(e.target.value)
-    setDelayMixState(amount)
-    setDelayMix(amount)
+    setWallDelayMixState(amount)
+    setWallDelayMix(amount)
+  }
+
+  // Circle delay handlers
+  const handleCircleDelayEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setCircleDelayEnabledState(enabled)
+    setCircleDelayEnabled(enabled)
+  }
+
+  const handleCircleDelayTimeChange = (e) => {
+    const time = Number(e.target.value)
+    setCircleDelayTimeState(time)
+    setCircleDelayTime(time)
+  }
+
+  const handleCircleDelayFeedbackChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleDelayFeedbackState(amount)
+    setCircleDelayFeedback(amount)
+  }
+
+  const handleCircleDelayMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleDelayMixState(amount)
+    setCircleDelayMix(amount)
   }
 
   const generateRandomColor = () => {
@@ -581,72 +633,149 @@ export default function BouncingCircles() {
               style={sliderStyles}
             />
           </div>
+          {/* Wall Delay Controls */}
           <div style={sliderGroupStyles}>
+            <label style={{...labelStyles, fontWeight: 'bold'}}>
+              Wall Collision Delay
+            </label>
             <label style={labelStyles}>
               <input
                 type="checkbox"
-                checked={delayEnabled}
-                onChange={handleDelayEnabledChange}
+                checked={wallDelayEnabled}
+                onChange={handleWallDelayEnabledChange}
                 style={checkboxStyles}
               />
-              Enable Delay
+              Enable Wall Delay
             </label>
           </div>
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Delay Time: {delayTime.toFixed(2)}s
+              Wall Delay Time: {wallDelayTime.toFixed(2)}s
             </label>
             <input
               type="range"
               min="0.1"
               max="1.0"
               step="0.1"
-              value={delayTime}
-              onChange={handleDelayTimeChange}
+              value={wallDelayTime}
+              onChange={handleWallDelayTimeChange}
               style={{
                 ...sliderStyles,
-                opacity: delayEnabled ? 1 : 0.5,
-                cursor: delayEnabled ? 'pointer' : 'not-allowed'
+                opacity: wallDelayEnabled ? 1 : 0.5,
+                cursor: wallDelayEnabled ? 'pointer' : 'not-allowed'
               }}
-              disabled={!delayEnabled}
+              disabled={!wallDelayEnabled}
             />
           </div>
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Feedback: {(delayFeedback * 100).toFixed(0)}%
+              Wall Feedback: {(wallDelayFeedback * 100).toFixed(0)}%
             </label>
             <input
               type="range"
               min="0"
               max="0.9"
               step="0.1"
-              value={delayFeedback}
-              onChange={handleDelayFeedbackChange}
+              value={wallDelayFeedback}
+              onChange={handleWallDelayFeedbackChange}
               style={{
                 ...sliderStyles,
-                opacity: delayEnabled ? 1 : 0.5,
-                cursor: delayEnabled ? 'pointer' : 'not-allowed'
+                opacity: wallDelayEnabled ? 1 : 0.5,
+                cursor: wallDelayEnabled ? 'pointer' : 'not-allowed'
               }}
-              disabled={!delayEnabled}
+              disabled={!wallDelayEnabled}
             />
           </div>
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Mix: {(delayMix * 100).toFixed(0)}%
+              Wall Mix: {(wallDelayMix * 100).toFixed(0)}%
             </label>
             <input
               type="range"
               min="0"
               max="1"
               step="0.1"
-              value={delayMix}
-              onChange={handleDelayMixChange}
+              value={wallDelayMix}
+              onChange={handleWallDelayMixChange}
               style={{
                 ...sliderStyles,
-                opacity: delayEnabled ? 1 : 0.5,
-                cursor: delayEnabled ? 'pointer' : 'not-allowed'
+                opacity: wallDelayEnabled ? 1 : 0.5,
+                cursor: wallDelayEnabled ? 'pointer' : 'not-allowed'
               }}
-              disabled={!delayEnabled}
+              disabled={!wallDelayEnabled}
+            />
+          </div>
+          
+          {/* Circle Delay Controls */}
+          <div style={sliderGroupStyles}>
+            <label style={{...labelStyles, fontWeight: 'bold', marginTop: '16px'}}>
+              Ball Collision Delay
+            </label>
+            <label style={labelStyles}>
+              <input
+                type="checkbox"
+                checked={circleDelayEnabled}
+                onChange={handleCircleDelayEnabledChange}
+                style={checkboxStyles}
+              />
+              Enable Ball Delay
+            </label>
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Ball Delay Time: {circleDelayTime.toFixed(2)}s
+            </label>
+            <input
+              type="range"
+              min="0.1"
+              max="1.0"
+              step="0.1"
+              value={circleDelayTime}
+              onChange={handleCircleDelayTimeChange}
+              style={{
+                ...sliderStyles,
+                opacity: circleDelayEnabled ? 1 : 0.5,
+                cursor: circleDelayEnabled ? 'pointer' : 'not-allowed'
+              }}
+              disabled={!circleDelayEnabled}
+            />
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Ball Feedback: {(circleDelayFeedback * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="0.9"
+              step="0.1"
+              value={circleDelayFeedback}
+              onChange={handleCircleDelayFeedbackChange}
+              style={{
+                ...sliderStyles,
+                opacity: circleDelayEnabled ? 1 : 0.5,
+                cursor: circleDelayEnabled ? 'pointer' : 'not-allowed'
+              }}
+              disabled={!circleDelayEnabled}
+            />
+          </div>
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Ball Mix: {(circleDelayMix * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={circleDelayMix}
+              onChange={handleCircleDelayMixChange}
+              style={{
+                ...sliderStyles,
+                opacity: circleDelayEnabled ? 1 : 0.5,
+                cursor: circleDelayEnabled ? 'pointer' : 'not-allowed'
+              }}
+              disabled={!circleDelayEnabled}
             />
           </div>
         </div>
