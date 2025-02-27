@@ -57,6 +57,33 @@ import {
   getDelayFeedback,
   setDelayMix,
   getDelayMix,
+  // Wall reverb parameters
+  setWallReverbEnabled,
+  getWallReverbEnabled,
+  setWallReverbRoomSize,
+  getWallReverbRoomSize,
+  setWallReverbDamping,
+  getWallReverbDamping,
+  setWallReverbMix,
+  getWallReverbMix,
+  // Circle reverb parameters
+  setCircleReverbEnabled,
+  getCircleReverbEnabled,
+  setCircleReverbRoomSize,
+  getCircleReverbRoomSize,
+  setCircleReverbDamping,
+  getCircleReverbDamping,
+  setCircleReverbMix,
+  getCircleReverbMix,
+  // Legacy reverb parameters
+  setReverbEnabled,
+  getReverbEnabled,
+  setReverbRoomSize,
+  getReverbRoomSize,
+  setReverbDamping,
+  getReverbDamping,
+  setReverbMix,
+  getReverbMix,
   cleanup as cleanupAudio
 } from '../utils/sound'
 import { checkCircleCollision, resolveCollision } from '../utils/physics'
@@ -166,6 +193,18 @@ export default function BouncingCircles() {
   const [circleDelayTime, setCircleDelayTimeState] = useState(getCircleDelayTime())
   const [circleDelayFeedback, setCircleDelayFeedbackState] = useState(getCircleDelayFeedback())
   const [circleDelayMix, setCircleDelayMixState] = useState(getCircleDelayMix())
+  
+  // Wall reverb state
+  const [wallReverbEnabled, setWallReverbEnabledState] = useState(getWallReverbEnabled())
+  const [wallReverbRoomSize, setWallReverbRoomSizeState] = useState(getWallReverbRoomSize())
+  const [wallReverbDamping, setWallReverbDampingState] = useState(getWallReverbDamping())
+  const [wallReverbMix, setWallReverbMixState] = useState(getWallReverbMix())
+  
+  // Circle reverb state
+  const [circleReverbEnabled, setCircleReverbEnabledState] = useState(getCircleReverbEnabled())
+  const [circleReverbRoomSize, setCircleReverbRoomSizeState] = useState(getCircleReverbRoomSize())
+  const [circleReverbDamping, setCircleReverbDampingState] = useState(getCircleReverbDamping())
+  const [circleReverbMix, setCircleReverbMixState] = useState(getCircleReverbMix())
   const circleRefs = useRef(new Map())
   const circleStates = useRef(new Map())
   const tickerFunctions = useRef(new Map())
@@ -348,6 +387,56 @@ export default function BouncingCircles() {
     const amount = Number(e.target.value)
     setCircleDelayMixState(amount)
     setCircleDelayMix(amount)
+  }
+  
+  // Wall reverb handlers
+  const handleWallReverbEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setWallReverbEnabledState(enabled)
+    setWallReverbEnabled(enabled)
+  }
+  
+  const handleWallReverbRoomSizeChange = (e) => {
+    const size = Number(e.target.value)
+    setWallReverbRoomSizeState(size)
+    setWallReverbRoomSize(size)
+  }
+  
+  const handleWallReverbDampingChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallReverbDampingState(amount)
+    setWallReverbDamping(amount)
+  }
+  
+  const handleWallReverbMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallReverbMixState(amount)
+    setWallReverbMix(amount)
+  }
+  
+  // Circle reverb handlers
+  const handleCircleReverbEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setCircleReverbEnabledState(enabled)
+    setCircleReverbEnabled(enabled)
+  }
+  
+  const handleCircleReverbRoomSizeChange = (e) => {
+    const size = Number(e.target.value)
+    setCircleReverbRoomSizeState(size)
+    setCircleReverbRoomSize(size)
+  }
+  
+  const handleCircleReverbDampingChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleReverbDampingState(amount)
+    setCircleReverbDamping(amount)
+  }
+  
+  const handleCircleReverbMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleReverbMixState(amount)
+    setCircleReverbMix(amount)
   }
 
   const generateRandomColor = () => {
@@ -733,6 +822,71 @@ export default function BouncingCircles() {
               </>
             )}
           </div>
+          
+          {/* Wall Reverb Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Reverb Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={wallReverbEnabled}
+                  onChange={handleWallReverbEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Reverb
+              </label>
+            </div>
+            
+            {wallReverbEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Room Size: {(wallReverbRoomSize * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallReverbRoomSize}
+                    onChange={handleWallReverbRoomSizeChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Damping: {(wallReverbDamping * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallReverbDamping}
+                    onChange={handleWallReverbDampingChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(wallReverbMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallReverbMix}
+                    onChange={handleWallReverbMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
         
         {/* Ball Collision Sound Controls */}
@@ -859,6 +1013,71 @@ export default function BouncingCircles() {
                     step="0.1"
                     value={circleDelayMix}
                     onChange={handleCircleDelayMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Ball Reverb Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Reverb Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={circleReverbEnabled}
+                  onChange={handleCircleReverbEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Reverb
+              </label>
+            </div>
+            
+            {circleReverbEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Room Size: {(circleReverbRoomSize * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleReverbRoomSize}
+                    onChange={handleCircleReverbRoomSizeChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Damping: {(circleReverbDamping * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleReverbDamping}
+                    onChange={handleCircleReverbDampingChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(circleReverbMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleReverbMix}
+                    onChange={handleCircleReverbMixChange}
                     style={sliderStyles}
                   />
                 </div>

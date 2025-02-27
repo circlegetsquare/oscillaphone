@@ -104,6 +104,18 @@ let circleDelayTime = 0.3    // Default 300ms delay
 let circleDelayFeedback = 0.3 // 30% feedback
 let circleDelayMix = 0.3     // 30% wet signal
 
+// Reverb parameters for wall sounds
+let wallReverbEnabled = false
+let wallReverbRoomSize = 0.5    // Medium room size (0.0 to 1.0)
+let wallReverbDamping = 0.3     // Moderate damping (0.0 to 1.0)
+let wallReverbMix = 0.3         // 30% wet signal
+
+// Reverb parameters for circle sounds
+let circleReverbEnabled = false
+let circleReverbRoomSize = 0.5  // Medium room size (0.0 to 1.0)
+let circleReverbDamping = 0.3   // Moderate damping (0.0 to 1.0)
+let circleReverbMix = 0.3       // 30% wet signal
+
 const getRandomNote = (group) => {
   let noteNames;
   switch (currentScale) {
@@ -134,6 +146,92 @@ const cleanupAudioNodes = (nodes) => {
   });
 }
 
+// Create a custom reverb network
+const createReverbNetwork = (audioContext, input, output, roomSize, damping, mix, nodes) => {
+  // Create reverb components
+  const reverbInput = audioContext.createGain();
+  const reverbOutput = audioContext.createGain();
+  const dryMix = audioContext.createGain();
+  const wetMix = audioContext.createGain();
+  
+  // Create multiple delay lines with different delay times for a richer reverb
+  const delays = [
+    { delayTime: 0.03, feedback: roomSize * 0.8 },
+    { delayTime: 0.05, feedback: roomSize * 0.7 },
+    { delayTime: 0.07, feedback: roomSize * 0.6 },
+    { delayTime: 0.11, feedback: roomSize * 0.5 }
+  ];
+  
+  const delayNodes = [];
+  const feedbackNodes = [];
+  const filterNodes = [];
+  
+  // Add all nodes to tracking sets
+  [reverbInput, reverbOutput, dryMix, wetMix].forEach(node => {
+    nodes.add(node);
+    activeNodes.add(node);
+  });
+  
+  // Set up dry/wet mix
+  dryMix.gain.setValueAtTime(1 - mix, audioContext.currentTime);
+  wetMix.gain.setValueAtTime(mix, audioContext.currentTime);
+  
+  // Connect dry path
+  input.connect(dryMix);
+  dryMix.connect(output);
+  
+  // Connect wet path input
+  input.connect(reverbInput);
+  
+  // Create and connect delay lines
+  delays.forEach((delayConfig, i) => {
+    // Create nodes for this delay line
+    const delayNode = audioContext.createDelay();
+    const feedbackNode = audioContext.createGain();
+    const filterNode = audioContext.createBiquadFilter();
+    
+    // Configure nodes
+    delayNode.delayTime.setValueAtTime(delayConfig.delayTime, audioContext.currentTime);
+    feedbackNode.gain.setValueAtTime(delayConfig.feedback, audioContext.currentTime);
+    
+    filterNode.type = 'lowpass';
+    // Apply damping - higher damping = lower cutoff frequency
+    const cutoff = 20000 - (damping * 15000);
+    filterNode.frequency.setValueAtTime(cutoff, audioContext.currentTime);
+    filterNode.Q.setValueAtTime(0.5, audioContext.currentTime);
+    
+    // Connect this delay line
+    reverbInput.connect(delayNode);
+    delayNode.connect(filterNode);
+    filterNode.connect(feedbackNode);
+    feedbackNode.connect(delayNode);
+    filterNode.connect(reverbOutput);
+    
+    // Add to arrays for tracking
+    delayNodes.push(delayNode);
+    feedbackNodes.push(feedbackNode);
+    filterNodes.push(filterNode);
+    
+    // Add to node tracking sets
+    [delayNode, feedbackNode, filterNode].forEach(node => {
+      nodes.add(node);
+      activeNodes.add(node);
+    });
+  });
+  
+  // Connect wet path output
+  reverbOutput.connect(wetMix);
+  wetMix.connect(output);
+  
+  return {
+    input: reverbInput,
+    output: reverbOutput,
+    delayNodes,
+    feedbackNodes,
+    filterNodes
+  };
+};
+
 const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType = 'circle') => {
   // Initialize audio context on first interaction
   if (!audioContext) {
@@ -148,11 +246,12 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
   const pannerNode = audioContext.createStereoPanner();
   const delayNode = audioContext.createDelay();
   const feedbackNode = audioContext.createGain();
-  const wetGainNode = audioContext.createGain();
-  const dryGainNode = audioContext.createGain();
+  const delayWetGainNode = audioContext.createGain();
+  const delayDryGainNode = audioContext.createGain();
+  const mainOutputNode = audioContext.createGain(); // New output node for all effects
 
   // Add nodes to tracking sets
-  [oscillator, gainNode, pannerNode, delayNode, feedbackNode, wetGainNode, dryGainNode]
+  [oscillator, gainNode, pannerNode, delayNode, feedbackNode, delayWetGainNode, delayDryGainNode, mainOutputNode]
     .forEach(node => {
       nodes.add(node);
       activeNodes.add(node);
@@ -181,31 +280,66 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
   
   delayNode.delayTime.setValueAtTime(useDelayTime, audioContext.currentTime);
   feedbackNode.gain.setValueAtTime(useDelayFeedback, audioContext.currentTime);
-  wetGainNode.gain.setValueAtTime(useDelayEnabled ? useDelayMix : 0, audioContext.currentTime);
-  dryGainNode.gain.setValueAtTime(useDelayEnabled ? 1 - useDelayMix : 1, audioContext.currentTime);
+  delayWetGainNode.gain.setValueAtTime(useDelayEnabled ? useDelayMix : 0, audioContext.currentTime);
+  delayDryGainNode.gain.setValueAtTime(useDelayEnabled ? 1 - useDelayMix : 1, audioContext.currentTime);
+
+  // Set up reverb effect based on sound type
+  const useReverbEnabled = soundType === 'wall' ? wallReverbEnabled : circleReverbEnabled;
+  const useReverbRoomSize = soundType === 'wall' ? wallReverbRoomSize : circleReverbRoomSize;
+  const useReverbDamping = soundType === 'wall' ? wallReverbDamping : circleReverbDamping;
+  const useReverbMix = soundType === 'wall' ? wallReverbMix : circleReverbMix;
 
   // Connect nodes:
-  // Dry signal path
+  // Main signal flow
   oscillator.connect(gainNode);
-  gainNode.connect(dryGainNode);
-  dryGainNode.connect(pannerNode);
-
-  // Wet (delay) signal path
-  gainNode.connect(delayNode);
-  delayNode.connect(wetGainNode);
-  wetGainNode.connect(pannerNode);
-
-  // Delay feedback loop
-  delayNode.connect(feedbackNode);
-  feedbackNode.connect(delayNode);
-
+  
+  if (useReverbEnabled) {
+    // If reverb is enabled, create and connect the reverb network
+    const reverbNetwork = createReverbNetwork(
+      audioContext,
+      gainNode,
+      mainOutputNode,
+      useReverbRoomSize,
+      useReverbDamping,
+      useReverbMix,
+      nodes
+    );
+  } else {
+    // If no reverb, connect directly to main output
+    gainNode.connect(mainOutputNode);
+  }
+  
+  // From main output, apply delay if enabled
+  if (useDelayEnabled) {
+    // Dry delay path
+    mainOutputNode.connect(delayDryGainNode);
+    delayDryGainNode.connect(pannerNode);
+    
+    // Wet delay path
+    mainOutputNode.connect(delayNode);
+    delayNode.connect(delayWetGainNode);
+    delayWetGainNode.connect(pannerNode);
+    
+    // Delay feedback loop
+    delayNode.connect(feedbackNode);
+    feedbackNode.connect(delayNode);
+  } else {
+    // No delay, connect directly to panner
+    mainOutputNode.connect(pannerNode);
+  }
+  
   // Final output
   pannerNode.connect(audioContext.destination);
 
+  // Calculate maximum effect tail time for proper cleanup
+  const reverbTailTime = useReverbEnabled ? 2.0 : 0; // 2 seconds for reverb tail
+  const delayTailTime = useDelayEnabled ? useDelayTime * 4 : 0;
+  const effectTailTime = Math.max(reverbTailTime, delayTailTime);
+  
   // Set up cleanup
-  const stopTime = audioContext.currentTime + duration + (useDelayEnabled ? useDelayTime * 4 : 0);
+  const stopTime = audioContext.currentTime + duration + effectTailTime;
   oscillator.onended = () => {
-    setTimeout(() => cleanupAudioNodes(nodes), (useDelayEnabled ? useDelayTime * 4000 : 0));
+    setTimeout(() => cleanupAudioNodes(nodes), effectTailTime * 1000);
   };
 
   // Start and stop
@@ -406,6 +540,82 @@ export const getDelayEnabled = () => circleDelayEnabled
 export const getDelayTime = () => circleDelayTime
 export const getDelayFeedback = () => circleDelayFeedback
 export const getDelayMix = () => circleDelayMix
+
+// Wall reverb parameter setters
+export const setWallReverbEnabled = (enabled) => {
+  wallReverbEnabled = enabled
+}
+
+export const setWallReverbRoomSize = (size) => {
+  wallReverbRoomSize = Math.max(0, Math.min(1.0, size))
+}
+
+export const setWallReverbDamping = (amount) => {
+  wallReverbDamping = Math.max(0, Math.min(1.0, amount))
+}
+
+export const setWallReverbMix = (amount) => {
+  wallReverbMix = Math.max(0, Math.min(1.0, amount))
+}
+
+// Wall reverb parameter getters
+export const getWallReverbEnabled = () => wallReverbEnabled
+export const getWallReverbRoomSize = () => wallReverbRoomSize
+export const getWallReverbDamping = () => wallReverbDamping
+export const getWallReverbMix = () => wallReverbMix
+
+// Circle reverb parameter setters
+export const setCircleReverbEnabled = (enabled) => {
+  circleReverbEnabled = enabled
+}
+
+export const setCircleReverbRoomSize = (size) => {
+  circleReverbRoomSize = Math.max(0, Math.min(1.0, size))
+}
+
+export const setCircleReverbDamping = (amount) => {
+  circleReverbDamping = Math.max(0, Math.min(1.0, amount))
+}
+
+export const setCircleReverbMix = (amount) => {
+  circleReverbMix = Math.max(0, Math.min(1.0, amount))
+}
+
+// Circle reverb parameter getters
+export const getCircleReverbEnabled = () => circleReverbEnabled
+export const getCircleReverbRoomSize = () => circleReverbRoomSize
+export const getCircleReverbDamping = () => circleReverbDamping
+export const getCircleReverbMix = () => circleReverbMix
+
+// Legacy reverb parameter setters (affect both wall and circle)
+export const setReverbEnabled = (enabled) => {
+  wallReverbEnabled = enabled
+  circleReverbEnabled = enabled
+}
+
+export const setReverbRoomSize = (size) => {
+  const clampedSize = Math.max(0, Math.min(1.0, size))
+  wallReverbRoomSize = clampedSize
+  circleReverbRoomSize = clampedSize
+}
+
+export const setReverbDamping = (amount) => {
+  const clampedAmount = Math.max(0, Math.min(1.0, amount))
+  wallReverbDamping = clampedAmount
+  circleReverbDamping = clampedAmount
+}
+
+export const setReverbMix = (amount) => {
+  const clampedAmount = Math.max(0, Math.min(1.0, amount))
+  wallReverbMix = clampedAmount
+  circleReverbMix = clampedAmount
+}
+
+// Legacy reverb parameter getters (return circle values for consistency)
+export const getReverbEnabled = () => circleReverbEnabled
+export const getReverbRoomSize = () => circleReverbRoomSize
+export const getReverbDamping = () => circleReverbDamping
+export const getReverbMix = () => circleReverbMix
 
 // Cleanup function for component unmount
 export const cleanup = () => {
