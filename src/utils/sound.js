@@ -91,6 +91,8 @@ let wallDetuneAmount = 0 // Default detune for wall sounds
 let circleDetuneAmount = 0 // Default detune for circle sounds
 let wallWaveform = 'sine' // Default waveform for wall sounds
 let circleWaveform = 'sine' // Default waveform for circle sounds
+let wallSoundVolume = 0.15 // Default wall sound volume
+let circleSoundVolume = 0.2 // Default circle sound volume
 
 // Delay parameters for wall sounds
 let wallDelayEnabled = false
@@ -470,14 +472,14 @@ export const playBeep = (pan = 0) => {
 export const playCollisionBeep = (pan = 0) => {
   const group = Math.random() < 0.5 ? 'CIRCLE_HIGH' : 'CIRCLE_HIGHER';
   const note = getRandomNote(group);
-  createBeep(note, circleSoundDuration, 0.2, pan, 'circle');
+  createBeep(note, circleSoundDuration, circleSoundVolume, pan, 'circle');
 }
 
 // Get a random note for wall collisions
 export const playWallCollisionBeep = (pan = 0) => {
   const group = Math.random() < 0.5 ? 'WALL_LOW' : 'WALL_MID';
   const note = getRandomNote(group);
-  createBeep(note, wallSoundDuration, 0.15, pan, 'wall');
+  createBeep(note, wallSoundDuration, wallSoundVolume, pan, 'wall');
 }
 
 // Export scales for UI
@@ -792,6 +794,29 @@ export const getDistortionEnabled = () => circleDistortionEnabled
 export const getDistortionAmount = () => circleDistortionAmount
 export const getDistortionOversample = () => circleDistortionOversample
 export const getDistortionMix = () => circleDistortionMix
+
+// Wall volume setter/getter
+export const setWallVolume = (volume) => {
+  wallSoundVolume = Math.max(0, Math.min(1.0, volume))
+}
+
+export const getWallVolume = () => wallSoundVolume
+
+// Circle volume setter/getter
+export const setCircleVolume = (volume) => {
+  circleSoundVolume = Math.max(0, Math.min(1.0, volume))
+}
+
+export const getCircleVolume = () => circleSoundVolume
+
+// Legacy volume setter/getter (affects both)
+export const setVolume = (volume) => {
+  const clampedVolume = Math.max(0, Math.min(1.0, volume))
+  wallSoundVolume = clampedVolume
+  circleSoundVolume = clampedVolume
+}
+
+export const getVolume = () => circleSoundVolume // Return circle value for consistency
 
 // Cleanup function for component unmount
 export const cleanup = () => {

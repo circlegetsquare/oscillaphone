@@ -111,6 +111,15 @@ import {
   getDistortionOversample,
   setDistortionMix,
   getDistortionMix,
+  // Wall volume parameters
+  setWallVolume,
+  getWallVolume,
+  // Circle volume parameters
+  setCircleVolume,
+  getCircleVolume,
+  // Legacy volume parameters
+  setVolume,
+  getVolume,
   cleanup as cleanupAudio
 } from '../utils/sound'
 import { checkCircleCollision, resolveCollision } from '../utils/physics'
@@ -244,6 +253,10 @@ export default function BouncingCircles() {
   const [circleDistortionAmount, setCircleDistortionAmountState] = useState(getCircleDistortionAmount())
   const [circleDistortionOversample, setCircleDistortionOversampleState] = useState(getCircleDistortionOversample())
   const [circleDistortionMix, setCircleDistortionMixState] = useState(getCircleDistortionMix())
+  
+  // Volume state
+  const [wallVolume, setWallVolumeState] = useState(getWallVolume())
+  const [circleVolume, setCircleVolumeState] = useState(getCircleVolume())
   const circleRefs = useRef(new Map())
   const circleStates = useRef(new Map())
   const tickerFunctions = useRef(new Map())
@@ -524,6 +537,20 @@ export default function BouncingCircles() {
     const amount = Number(e.target.value)
     setCircleDistortionMixState(amount)
     setCircleDistortionMix(amount)
+  }
+  
+  // Wall volume handler
+  const handleWallVolumeChange = (e) => {
+    const volume = Number(e.target.value)
+    setWallVolumeState(volume)
+    setWallVolume(volume)
+  }
+  
+  // Circle volume handler
+  const handleCircleVolumeChange = (e) => {
+    const volume = Number(e.target.value)
+    setCircleVolumeState(volume)
+    setCircleVolume(volume)
   }
 
   const generateRandomColor = () => {
@@ -813,6 +840,22 @@ export default function BouncingCircles() {
             </div>
           </div>
           
+          {/* Wall Volume */}
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Volume: {(wallVolume * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1.0"
+              step="0.05"
+              value={wallVolume}
+              onChange={handleWallVolumeChange}
+              style={sliderStyles}
+            />
+          </div>
+          
           {/* Wall Duration */}
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
@@ -1085,6 +1128,22 @@ export default function BouncingCircles() {
                 </button>
               ))}
             </div>
+          </div>
+          
+          {/* Ball Volume */}
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Volume: {(circleVolume * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1.0"
+              step="0.05"
+              value={circleVolume}
+              onChange={handleCircleVolumeChange}
+              style={sliderStyles}
+            />
           </div>
           
           {/* Ball Duration */}
