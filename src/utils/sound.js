@@ -116,6 +116,18 @@ let circleReverbRoomSize = 0.5  // Medium room size (0.0 to 1.0)
 let circleReverbDamping = 0.3   // Moderate damping (0.0 to 1.0)
 let circleReverbMix = 0.3       // 30% wet signal
 
+// Distortion parameters for wall sounds
+let wallDistortionEnabled = false
+let wallDistortionAmount = 0.5    // Default distortion amount (0.0 to 1.0)
+let wallDistortionOversample = 'none' // Options: 'none', '2x', '4x'
+let wallDistortionMix = 0.3       // 30% wet signal
+
+// Distortion parameters for circle sounds
+let circleDistortionEnabled = false
+let circleDistortionAmount = 0.5  // Default distortion amount (0.0 to 1.0)
+let circleDistortionOversample = 'none'
+let circleDistortionMix = 0.3     // 30% wet signal
+
 const getRandomNote = (group) => {
   let noteNames;
   switch (currentScale) {
@@ -145,6 +157,61 @@ const cleanupAudioNodes = (nodes) => {
     }
   });
 }
+
+// Create a distortion curve for the WaveShaper node
+const createDistortionCurve = (amount = 20) => {
+  // Use a smaller number of samples for better performance
+  const n_samples = 256;
+  const curve = new Float32Array(n_samples);
+  
+  for (let i = 0; i < n_samples; ++i) {
+    const x = i * 2 / n_samples - 1;
+    // Simpler distortion algorithm that creates a nice warm overdrive
+    curve[i] = (Math.PI + amount) * x / (Math.PI + amount * Math.abs(x));
+  }
+  
+  return curve;
+};
+
+// Create a distortion network
+const createDistortionNetwork = (audioContext, input, output, amount, oversample, mix, nodes) => {
+  // Create distortion components
+  const distortionInput = audioContext.createGain();
+  const distortionOutput = audioContext.createGain();
+  const dryMix = audioContext.createGain();
+  const wetMix = audioContext.createGain();
+  const waveShaperNode = audioContext.createWaveShaper();
+  
+  // Add nodes to tracking sets
+  [distortionInput, distortionOutput, dryMix, wetMix, waveShaperNode].forEach(node => {
+    nodes.add(node);
+    activeNodes.add(node);
+  });
+  
+  // Configure WaveShaper
+  waveShaperNode.curve = createDistortionCurve(amount * 100); // Scale amount for better control (0-100)
+  waveShaperNode.oversample = oversample;
+  
+  // Set up dry/wet mix
+  dryMix.gain.setValueAtTime(1 - mix, audioContext.currentTime);
+  wetMix.gain.setValueAtTime(mix, audioContext.currentTime);
+  
+  // Connect dry path
+  input.connect(dryMix);
+  dryMix.connect(output);
+  
+  // Connect wet path
+  input.connect(distortionInput);
+  distortionInput.connect(waveShaperNode);
+  waveShaperNode.connect(wetMix);
+  wetMix.connect(output);
+  
+  return {
+    input: distortionInput,
+    output: distortionOutput,
+    waveShaperNode
+  };
+};
 
 // Create a custom reverb network
 const createReverbNetwork = (audioContext, input, output, roomSize, damping, mix, nodes) => {
@@ -289,15 +356,43 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
   const useReverbDamping = soundType === 'wall' ? wallReverbDamping : circleReverbDamping;
   const useReverbMix = soundType === 'wall' ? wallReverbMix : circleReverbMix;
 
+  // Set up distortion effect based on sound type
+  const useDistortionEnabled = soundType === 'wall' ? wallDistortionEnabled : circleDistortionEnabled;
+  const useDistortionAmount = soundType === 'wall' ? wallDistortionAmount : circleDistortionAmount;
+  const useDistortionOversample = soundType === 'wall' ? wallDistortionOversample : circleDistortionOversample;
+  const useDistortionMix = soundType === 'wall' ? wallDistortionMix : circleDistortionMix;
+
   // Connect nodes:
   // Main signal flow
   oscillator.connect(gainNode);
   
+  // Create a new intermediate node for the distortion effect
+  const distortionOutputNode = audioContext.createGain();
+  nodes.add(distortionOutputNode);
+  activeNodes.add(distortionOutputNode);
+  
+  if (useDistortionEnabled) {
+    // If distortion is enabled, create and connect the distortion network
+    const distortionNetwork = createDistortionNetwork(
+      audioContext,
+      gainNode,
+      distortionOutputNode,
+      useDistortionAmount,
+      useDistortionOversample,
+      useDistortionMix,
+      nodes
+    );
+  } else {
+    // If no distortion, connect directly to the output node
+    gainNode.connect(distortionOutputNode);
+  }
+  
+  // Then continue with reverb (if enabled) using distortionOutputNode as input
   if (useReverbEnabled) {
     // If reverb is enabled, create and connect the reverb network
     const reverbNetwork = createReverbNetwork(
       audioContext,
-      gainNode,
+      distortionOutputNode,
       mainOutputNode,
       useReverbRoomSize,
       useReverbDamping,
@@ -306,7 +401,7 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
     );
   } else {
     // If no reverb, connect directly to main output
-    gainNode.connect(mainOutputNode);
+    distortionOutputNode.connect(mainOutputNode);
   }
   
   // From main output, apply delay if enabled
@@ -616,6 +711,87 @@ export const getReverbEnabled = () => circleReverbEnabled
 export const getReverbRoomSize = () => circleReverbRoomSize
 export const getReverbDamping = () => circleReverbDamping
 export const getReverbMix = () => circleReverbMix
+
+// Wall distortion parameter setters
+export const setWallDistortionEnabled = (enabled) => {
+  wallDistortionEnabled = enabled
+}
+
+export const setWallDistortionAmount = (amount) => {
+  wallDistortionAmount = Math.max(0, Math.min(1.0, amount))
+}
+
+export const setWallDistortionOversample = (oversample) => {
+  if (['none', '2x', '4x'].includes(oversample)) {
+    wallDistortionOversample = oversample
+  }
+}
+
+export const setWallDistortionMix = (amount) => {
+  wallDistortionMix = Math.max(0, Math.min(1.0, amount))
+}
+
+// Wall distortion parameter getters
+export const getWallDistortionEnabled = () => wallDistortionEnabled
+export const getWallDistortionAmount = () => wallDistortionAmount
+export const getWallDistortionOversample = () => wallDistortionOversample
+export const getWallDistortionMix = () => wallDistortionMix
+
+// Circle distortion parameter setters
+export const setCircleDistortionEnabled = (enabled) => {
+  circleDistortionEnabled = enabled
+}
+
+export const setCircleDistortionAmount = (amount) => {
+  circleDistortionAmount = Math.max(0, Math.min(1.0, amount))
+}
+
+export const setCircleDistortionOversample = (oversample) => {
+  if (['none', '2x', '4x'].includes(oversample)) {
+    circleDistortionOversample = oversample
+  }
+}
+
+export const setCircleDistortionMix = (amount) => {
+  circleDistortionMix = Math.max(0, Math.min(1.0, amount))
+}
+
+// Circle distortion parameter getters
+export const getCircleDistortionEnabled = () => circleDistortionEnabled
+export const getCircleDistortionAmount = () => circleDistortionAmount
+export const getCircleDistortionOversample = () => circleDistortionOversample
+export const getCircleDistortionMix = () => circleDistortionMix
+
+// Legacy distortion parameter setters (affect both wall and circle)
+export const setDistortionEnabled = (enabled) => {
+  wallDistortionEnabled = enabled
+  circleDistortionEnabled = enabled
+}
+
+export const setDistortionAmount = (amount) => {
+  const clampedAmount = Math.max(0, Math.min(1.0, amount))
+  wallDistortionAmount = clampedAmount
+  circleDistortionAmount = clampedAmount
+}
+
+export const setDistortionOversample = (oversample) => {
+  if (['none', '2x', '4x'].includes(oversample)) {
+    wallDistortionOversample = oversample
+    circleDistortionOversample = oversample
+  }
+}
+
+export const setDistortionMix = (amount) => {
+  const clampedAmount = Math.max(0, Math.min(1.0, amount))
+  wallDistortionMix = clampedAmount
+  circleDistortionMix = clampedAmount
+}
+
+// Legacy distortion parameter getters (return circle values for consistency)
+export const getDistortionEnabled = () => circleDistortionEnabled
+export const getDistortionAmount = () => circleDistortionAmount
+export const getDistortionOversample = () => circleDistortionOversample
+export const getDistortionMix = () => circleDistortionMix
 
 // Cleanup function for component unmount
 export const cleanup = () => {

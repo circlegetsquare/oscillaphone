@@ -84,6 +84,33 @@ import {
   getReverbDamping,
   setReverbMix,
   getReverbMix,
+  // Wall distortion parameters
+  setWallDistortionEnabled,
+  getWallDistortionEnabled,
+  setWallDistortionAmount,
+  getWallDistortionAmount,
+  setWallDistortionOversample,
+  getWallDistortionOversample,
+  setWallDistortionMix,
+  getWallDistortionMix,
+  // Circle distortion parameters
+  setCircleDistortionEnabled,
+  getCircleDistortionEnabled,
+  setCircleDistortionAmount,
+  getCircleDistortionAmount,
+  setCircleDistortionOversample,
+  getCircleDistortionOversample,
+  setCircleDistortionMix,
+  getCircleDistortionMix,
+  // Legacy distortion parameters
+  setDistortionEnabled,
+  getDistortionEnabled,
+  setDistortionAmount,
+  getDistortionAmount,
+  setDistortionOversample,
+  getDistortionOversample,
+  setDistortionMix,
+  getDistortionMix,
   cleanup as cleanupAudio
 } from '../utils/sound'
 import { checkCircleCollision, resolveCollision } from '../utils/physics'
@@ -205,6 +232,18 @@ export default function BouncingCircles() {
   const [circleReverbRoomSize, setCircleReverbRoomSizeState] = useState(getCircleReverbRoomSize())
   const [circleReverbDamping, setCircleReverbDampingState] = useState(getCircleReverbDamping())
   const [circleReverbMix, setCircleReverbMixState] = useState(getCircleReverbMix())
+  
+  // Wall distortion state
+  const [wallDistortionEnabled, setWallDistortionEnabledState] = useState(getWallDistortionEnabled())
+  const [wallDistortionAmount, setWallDistortionAmountState] = useState(getWallDistortionAmount())
+  const [wallDistortionOversample, setWallDistortionOversampleState] = useState(getWallDistortionOversample())
+  const [wallDistortionMix, setWallDistortionMixState] = useState(getWallDistortionMix())
+  
+  // Circle distortion state
+  const [circleDistortionEnabled, setCircleDistortionEnabledState] = useState(getCircleDistortionEnabled())
+  const [circleDistortionAmount, setCircleDistortionAmountState] = useState(getCircleDistortionAmount())
+  const [circleDistortionOversample, setCircleDistortionOversampleState] = useState(getCircleDistortionOversample())
+  const [circleDistortionMix, setCircleDistortionMixState] = useState(getCircleDistortionMix())
   const circleRefs = useRef(new Map())
   const circleStates = useRef(new Map())
   const tickerFunctions = useRef(new Map())
@@ -437,6 +476,54 @@ export default function BouncingCircles() {
     const amount = Number(e.target.value)
     setCircleReverbMixState(amount)
     setCircleReverbMix(amount)
+  }
+  
+  // Wall distortion handlers
+  const handleWallDistortionEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setWallDistortionEnabledState(enabled)
+    setWallDistortionEnabled(enabled)
+  }
+  
+  const handleWallDistortionAmountChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallDistortionAmountState(amount)
+    setWallDistortionAmount(amount)
+  }
+  
+  const handleWallDistortionOversampleChange = (oversample) => {
+    setWallDistortionOversampleState(oversample)
+    setWallDistortionOversample(oversample)
+  }
+  
+  const handleWallDistortionMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallDistortionMixState(amount)
+    setWallDistortionMix(amount)
+  }
+  
+  // Circle distortion handlers
+  const handleCircleDistortionEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setCircleDistortionEnabledState(enabled)
+    setCircleDistortionEnabled(enabled)
+  }
+  
+  const handleCircleDistortionAmountChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleDistortionAmountState(amount)
+    setCircleDistortionAmount(amount)
+  }
+  
+  const handleCircleDistortionOversampleChange = (oversample) => {
+    setCircleDistortionOversampleState(oversample)
+    setCircleDistortionOversample(oversample)
+  }
+  
+  const handleCircleDistortionMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleDistortionMixState(amount)
+    setCircleDistortionMix(amount)
   }
 
   const generateRandomColor = () => {
@@ -887,6 +974,83 @@ export default function BouncingCircles() {
               </>
             )}
           </div>
+          
+          {/* Wall Distortion Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Distortion Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={wallDistortionEnabled}
+                  onChange={handleWallDistortionEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Distortion
+              </label>
+            </div>
+            
+            {wallDistortionEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Amount: {(wallDistortionAmount * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={wallDistortionAmount}
+                    onChange={handleWallDistortionAmountChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={{...labelStyles, marginBottom: '8px'}}>
+                    Oversample: {wallDistortionOversample}
+                  </label>
+                  <div style={scaleButtonsStyles}>
+                    {['none', '2x', '4x'].map(option => (
+                      <button
+                        key={option}
+                        onClick={() => handleWallDistortionOversampleChange(option)}
+                        style={{
+                          ...buttonStyles,
+                          backgroundColor: wallDistortionOversample === option ? '#9333ea' : '#6b21a8',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#7e22ce'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 
+                            wallDistortionOversample === option ? '#9333ea' : '#6b21a8'
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(wallDistortionMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallDistortionMix}
+                    onChange={handleWallDistortionMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
         
         {/* Ball Collision Sound Controls */}
@@ -1078,6 +1242,83 @@ export default function BouncingCircles() {
                     step="0.1"
                     value={circleReverbMix}
                     onChange={handleCircleReverbMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Ball Distortion Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Distortion Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={circleDistortionEnabled}
+                  onChange={handleCircleDistortionEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Distortion
+              </label>
+            </div>
+            
+            {circleDistortionEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Amount: {(circleDistortionAmount * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={circleDistortionAmount}
+                    onChange={handleCircleDistortionAmountChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={{...labelStyles, marginBottom: '8px'}}>
+                    Oversample: {circleDistortionOversample}
+                  </label>
+                  <div style={scaleButtonsStyles}>
+                    {['none', '2x', '4x'].map(option => (
+                      <button
+                        key={option}
+                        onClick={() => handleCircleDistortionOversampleChange(option)}
+                        style={{
+                          ...buttonStyles,
+                          backgroundColor: circleDistortionOversample === option ? '#9333ea' : '#6b21a8',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#7e22ce'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 
+                            circleDistortionOversample === option ? '#9333ea' : '#6b21a8'
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(circleDistortionMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleDistortionMix}
+                    onChange={handleCircleDistortionMixChange}
                     style={sliderStyles}
                   />
                 </div>

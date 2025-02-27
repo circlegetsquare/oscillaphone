@@ -20,6 +20,7 @@ This task relates to the following completed goals from projectRoadmap.md:
    - Configurable sound durations for collisions
    - Delay effect with configurable parameters
    - Reverb effect with configurable room size, damping, and mix
+   - Distortion effect with configurable amount, oversample, and mix
 
 2. Animation Features:
    - Physics-based circle movements
