@@ -111,6 +111,39 @@ import {
   getDistortionOversample,
   setDistortionMix,
   getDistortionMix,
+  // Wall tremolo parameters
+  setWallTremoloEnabled,
+  getWallTremoloEnabled,
+  setWallTremoloRate,
+  getWallTremoloRate,
+  setWallTremoloDepth,
+  getWallTremoloDepth,
+  setWallTremoloShape,
+  getWallTremoloShape,
+  setWallTremoloMix,
+  getWallTremoloMix,
+  // Circle tremolo parameters
+  setCircleTremoloEnabled,
+  getCircleTremoloEnabled,
+  setCircleTremoloRate,
+  getCircleTremoloRate,
+  setCircleTremoloDepth,
+  getCircleTremoloDepth,
+  setCircleTremoloShape,
+  getCircleTremoloShape,
+  setCircleTremoloMix,
+  getCircleTremoloMix,
+  // Legacy tremolo parameters
+  setTremoloEnabled,
+  getTremoloEnabled,
+  setTremoloRate,
+  getTremoloRate,
+  setTremoloDepth,
+  getTremoloDepth,
+  setTremoloShape,
+  getTremoloShape,
+  setTremoloMix,
+  getTremoloMix,
   // Wall volume parameters
   setWallVolume,
   getWallVolume,
@@ -212,6 +245,7 @@ export default function BouncingCircles() {
   const [backgroundColors, setBackgroundColors] = useState(generateInitialColors())
   const [isAnimating, setIsAnimating] = useState(true)
   const [currentScale, setCurrentScale] = useState('C_MAJOR')
+  const [showControls, setShowControls] = useState(false)
   const [wallDuration, setWallDurationState] = useState(getWallDuration())
   const [circleDuration, setCircleDurationState] = useState(getCircleDuration())
   const [wallDetune, setWallDetuneState] = useState(getWallDetune())
@@ -253,6 +287,20 @@ export default function BouncingCircles() {
   const [circleDistortionAmount, setCircleDistortionAmountState] = useState(getCircleDistortionAmount())
   const [circleDistortionOversample, setCircleDistortionOversampleState] = useState(getCircleDistortionOversample())
   const [circleDistortionMix, setCircleDistortionMixState] = useState(getCircleDistortionMix())
+  
+  // Wall tremolo state
+  const [wallTremoloEnabled, setWallTremoloEnabledState] = useState(getWallTremoloEnabled())
+  const [wallTremoloRate, setWallTremoloRateState] = useState(getWallTremoloRate())
+  const [wallTremoloDepth, setWallTremoloDepthState] = useState(getWallTremoloDepth())
+  const [wallTremoloShape, setWallTremoloShapeState] = useState(getWallTremoloShape())
+  const [wallTremoloMix, setWallTremoloMixState] = useState(getWallTremoloMix())
+  
+  // Circle tremolo state
+  const [circleTremoloEnabled, setCircleTremoloEnabledState] = useState(getCircleTremoloEnabled())
+  const [circleTremoloRate, setCircleTremoloRateState] = useState(getCircleTremoloRate())
+  const [circleTremoloDepth, setCircleTremoloDepthState] = useState(getCircleTremoloDepth())
+  const [circleTremoloShape, setCircleTremoloShapeState] = useState(getCircleTremoloShape())
+  const [circleTremoloMix, setCircleTremoloMixState] = useState(getCircleTremoloMix())
   
   // Volume state
   const [wallVolume, setWallVolumeState] = useState(getWallVolume())
@@ -539,6 +587,66 @@ export default function BouncingCircles() {
     setCircleDistortionMix(amount)
   }
   
+  // Wall tremolo handlers
+  const handleWallTremoloEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setWallTremoloEnabledState(enabled)
+    setWallTremoloEnabled(enabled)
+  }
+  
+  const handleWallTremoloRateChange = (e) => {
+    const rate = Number(e.target.value)
+    setWallTremoloRateState(rate)
+    setWallTremoloRate(rate)
+  }
+  
+  const handleWallTremoloDepthChange = (e) => {
+    const depth = Number(e.target.value)
+    setWallTremoloDepthState(depth)
+    setWallTremoloDepth(depth)
+  }
+  
+  const handleWallTremoloShapeChange = (shape) => {
+    setWallTremoloShapeState(shape)
+    setWallTremoloShape(shape)
+  }
+  
+  const handleWallTremoloMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallTremoloMixState(amount)
+    setWallTremoloMix(amount)
+  }
+  
+  // Circle tremolo handlers
+  const handleCircleTremoloEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setCircleTremoloEnabledState(enabled)
+    setCircleTremoloEnabled(enabled)
+  }
+  
+  const handleCircleTremoloRateChange = (e) => {
+    const rate = Number(e.target.value)
+    setCircleTremoloRateState(rate)
+    setCircleTremoloRate(rate)
+  }
+  
+  const handleCircleTremoloDepthChange = (e) => {
+    const depth = Number(e.target.value)
+    setCircleTremoloDepthState(depth)
+    setCircleTremoloDepth(depth)
+  }
+  
+  const handleCircleTremoloShapeChange = (shape) => {
+    setCircleTremoloShapeState(shape)
+    setCircleTremoloShape(shape)
+  }
+  
+  const handleCircleTremoloMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleTremoloMixState(amount)
+    setCircleTremoloMix(amount)
+  }
+  
   // Wall volume handler
   const handleWallVolumeChange = (e) => {
     const volume = Number(e.target.value)
@@ -805,8 +913,39 @@ export default function BouncingCircles() {
             ))}
           </div>
         </div>
+        
+        {/* Show Controls Button */}
+        <div style={{marginBottom: '20px'}}>
+          <button
+            onClick={() => setShowControls(!showControls)}
+            style={{
+              ...buttonStyles,
+              backgroundColor: 'transparent',
+              color: '#6b21a8',
+              border: '2px solid #6b21a8',
+              width: '100%',
+              padding: '10px 16px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(107, 33, 168, 0.1)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+          >
+            <div style={{ minWidth: '110px', textAlign: 'center' }}>
+              {showControls ? 'Vibe out' : 'Get weird'}
+            </div>
+          </button>
+        </div>
 
-        {/* Wall Sound Controls */}
+        {showControls && (
+          <>
+            {/* Wall Sound Controls */}
         <div style={{marginBottom: '20px', padding: '12px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px'}}>
           <label style={{...labelStyles, fontWeight: 'bold', fontSize: '16px', marginBottom: '12px', display: 'block'}}>
             Wall Sound Controls
@@ -817,7 +956,11 @@ export default function BouncingCircles() {
             <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginBottom: '8px'}}>
               Waveform
             </label>
-            <div style={scaleButtonsStyles}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '8px'
+            }}>
               {WAVEFORMS.map(wave => (
                 <button
                   key={wave.id}
@@ -1055,7 +1198,11 @@ export default function BouncingCircles() {
                   <label style={{...labelStyles, marginBottom: '8px'}}>
                     Oversample: {wallDistortionOversample}
                   </label>
-                  <div style={scaleButtonsStyles}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px'
+                  }}>
                     {['none', '2x', '4x'].map(option => (
                       <button
                         key={option}
@@ -1094,6 +1241,101 @@ export default function BouncingCircles() {
               </>
             )}
           </div>
+          
+          {/* Wall Tremolo Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Tremolo Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={wallTremoloEnabled}
+                  onChange={handleWallTremoloEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Tremolo
+              </label>
+            </div>
+            
+            {wallTremoloEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Rate: {wallTremoloRate.toFixed(1)} Hz
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="20.0"
+                    step="0.1"
+                    value={wallTremoloRate}
+                    onChange={handleWallTremoloRateChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Depth: {(wallTremoloDepth * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={wallTremoloDepth}
+                    onChange={handleWallTremoloDepthChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={{...labelStyles, marginBottom: '8px'}}>
+                    Shape
+                  </label>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px'
+                  }}>
+                    {WAVEFORMS.map(wave => (
+                      <button
+                        key={wave.id}
+                        onClick={() => handleWallTremoloShapeChange(wave.id)}
+                        style={{
+                          ...buttonStyles,
+                          backgroundColor: wallTremoloShape === wave.id ? '#9333ea' : '#6b21a8',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#7e22ce'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 
+                            wallTremoloShape === wave.id ? '#9333ea' : '#6b21a8'
+                        }}
+                      >
+                        {wave.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(wallTremoloMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallTremoloMix}
+                    onChange={handleWallTremoloMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
         
         {/* Ball Collision Sound Controls */}
@@ -1107,7 +1349,11 @@ export default function BouncingCircles() {
             <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginBottom: '8px'}}>
               Waveform
             </label>
-            <div style={scaleButtonsStyles}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '8px'
+            }}>
               {WAVEFORMS.map(wave => (
                 <button
                   key={wave.id}
@@ -1345,7 +1591,11 @@ export default function BouncingCircles() {
                   <label style={{...labelStyles, marginBottom: '8px'}}>
                     Oversample: {circleDistortionOversample}
                   </label>
-                  <div style={scaleButtonsStyles}>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px'
+                  }}>
                     {['none', '2x', '4x'].map(option => (
                       <button
                         key={option}
@@ -1384,7 +1634,104 @@ export default function BouncingCircles() {
               </>
             )}
           </div>
+          
+          {/* Ball Tremolo Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Tremolo Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={circleTremoloEnabled}
+                  onChange={handleCircleTremoloEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Tremolo
+              </label>
+            </div>
+            
+            {circleTremoloEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Rate: {circleTremoloRate.toFixed(1)} Hz
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="20.0"
+                    step="0.1"
+                    value={circleTremoloRate}
+                    onChange={handleCircleTremoloRateChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Depth: {(circleTremoloDepth * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={circleTremoloDepth}
+                    onChange={handleCircleTremoloDepthChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={{...labelStyles, marginBottom: '8px'}}>
+                    Shape
+                  </label>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px'
+                  }}>
+                    {WAVEFORMS.map(wave => (
+                      <button
+                        key={wave.id}
+                        onClick={() => handleCircleTremoloShapeChange(wave.id)}
+                        style={{
+                          ...buttonStyles,
+                          backgroundColor: circleTremoloShape === wave.id ? '#9333ea' : '#6b21a8',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#7e22ce'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 
+                            circleTremoloShape === wave.id ? '#9333ea' : '#6b21a8'
+                        }}
+                      >
+                        {wave.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(circleTremoloMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleTremoloMix}
+                    onChange={handleCircleTremoloMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
+          </>
+        )}
       </div>
       <div
         ref={containerRef}

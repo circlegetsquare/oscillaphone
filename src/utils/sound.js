@@ -4,6 +4,20 @@ let audioContext;
 // Keep track of active audio nodes for cleanup
 let activeNodes = new Set();
 
+// Tremolo parameters for wall sounds
+let wallTremoloEnabled = false;
+let wallTremoloRate = 4.0;     // 4 Hz default
+let wallTremoloDepth = 0.5;    // 50% depth
+let wallTremoloShape = 'sine'; // Default waveform
+let wallTremoloMix = 0.5;      // 50% wet/dry mix
+
+// Tremolo parameters for circle sounds
+let circleTremoloEnabled = false;
+let circleTremoloRate = 4.0;     // 4 Hz default
+let circleTremoloDepth = 0.5;    // 50% depth
+let circleTremoloShape = 'sine'; // Default waveform
+let circleTremoloMix = 0.5;      // 50% wet/dry mix
+
 const SCALES = {
   C_MAJOR: {
     name: "C Major",
@@ -301,6 +315,64 @@ const createReverbNetwork = (audioContext, input, output, roomSize, damping, mix
   };
 };
 
+// Create a tremolo network
+const createTremoloNetwork = (audioContext, input, output, rate, depth, shape, mix, nodes) => {
+  // Create tremolo components
+  const tremoloInput = audioContext.createGain();
+  const tremoloOutput = audioContext.createGain();
+  const dryMix = audioContext.createGain();
+  const wetMix = audioContext.createGain();
+  const tremoloGain = audioContext.createGain();
+  const lfo = audioContext.createOscillator();
+  
+  // Add nodes to tracking sets
+  [tremoloInput, tremoloOutput, dryMix, wetMix, tremoloGain, lfo].forEach(node => {
+    nodes.add(node);
+    activeNodes.add(node);
+  });
+  
+  // Configure LFO (Low Frequency Oscillator)
+  lfo.type = shape;
+  lfo.frequency.setValueAtTime(rate, audioContext.currentTime);
+  
+  // Set up tremolo gain - this will be modulated by the LFO
+  // Start at 1 (full volume)
+  tremoloGain.gain.setValueAtTime(1, audioContext.currentTime);
+  
+  // Connect LFO to tremolo gain
+  // Scale the depth to control how much the volume changes
+  // The oscillator output is -1 to 1, so we need to scale it to avoid negative gain
+  // For a depth of 1 (100%), we want the gain to go from 0 to 1
+  // For a depth of 0.5 (50%), we want the gain to go from 0.5 to 1
+  const scaledDepth = depth * 0.5; // Scale depth to 0-0.5 range
+  lfo.connect(tremoloGain.gain);
+  tremoloGain.gain.setValueAtTime(1 - scaledDepth, audioContext.currentTime);
+  
+  // Set up dry/wet mix
+  dryMix.gain.setValueAtTime(1 - mix, audioContext.currentTime);
+  wetMix.gain.setValueAtTime(mix, audioContext.currentTime);
+  
+  // Connect dry path
+  input.connect(dryMix);
+  dryMix.connect(output);
+  
+  // Connect wet path
+  input.connect(tremoloInput);
+  tremoloInput.connect(tremoloGain);
+  tremoloGain.connect(wetMix);
+  wetMix.connect(output);
+  
+  // Start the LFO
+  lfo.start();
+  
+  return {
+    input: tremoloInput,
+    output: tremoloOutput,
+    lfo,
+    tremoloGain
+  };
+};
+
 const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType = 'circle') => {
   // Initialize audio context on first interaction
   if (!audioContext) {
@@ -364,20 +436,50 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
   const useDistortionOversample = soundType === 'wall' ? wallDistortionOversample : circleDistortionOversample;
   const useDistortionMix = soundType === 'wall' ? wallDistortionMix : circleDistortionMix;
 
+  // Set up tremolo effect based on sound type
+  const useTremoloEnabled = soundType === 'wall' ? wallTremoloEnabled : circleTremoloEnabled;
+  const useTremoloRate = soundType === 'wall' ? wallTremoloRate : circleTremoloRate;
+  const useTremoloDepth = soundType === 'wall' ? wallTremoloDepth : circleTremoloDepth;
+  const useTremoloShape = soundType === 'wall' ? wallTremoloShape : circleTremoloShape;
+  const useTremoloMix = soundType === 'wall' ? wallTremoloMix : circleTremoloMix;
+
   // Connect nodes:
   // Main signal flow
   oscillator.connect(gainNode);
   
-  // Create a new intermediate node for the distortion effect
+  // Create intermediate nodes for each effect
+  const tremoloOutputNode = audioContext.createGain();
   const distortionOutputNode = audioContext.createGain();
+  
+  nodes.add(tremoloOutputNode);
   nodes.add(distortionOutputNode);
+  activeNodes.add(tremoloOutputNode);
   activeNodes.add(distortionOutputNode);
   
+  // Apply tremolo if enabled
+  if (useTremoloEnabled) {
+    // If tremolo is enabled, create and connect the tremolo network
+    const tremoloNetwork = createTremoloNetwork(
+      audioContext,
+      gainNode,
+      tremoloOutputNode,
+      useTremoloRate,
+      useTremoloDepth,
+      useTremoloShape,
+      useTremoloMix,
+      nodes
+    );
+  } else {
+    // If no tremolo, connect directly to the output node
+    gainNode.connect(tremoloOutputNode);
+  }
+  
+  // Apply distortion if enabled
   if (useDistortionEnabled) {
     // If distortion is enabled, create and connect the distortion network
     const distortionNetwork = createDistortionNetwork(
       audioContext,
-      gainNode,
+      tremoloOutputNode,
       distortionOutputNode,
       useDistortionAmount,
       useDistortionOversample,
@@ -386,10 +488,10 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
     );
   } else {
     // If no distortion, connect directly to the output node
-    gainNode.connect(distortionOutputNode);
+    tremoloOutputNode.connect(distortionOutputNode);
   }
   
-  // Then continue with reverb (if enabled) using distortionOutputNode as input
+  // Apply reverb if enabled
   if (useReverbEnabled) {
     // If reverb is enabled, create and connect the reverb network
     const reverbNetwork = createReverbNetwork(
@@ -406,7 +508,7 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
     distortionOutputNode.connect(mainOutputNode);
   }
   
-  // From main output, apply delay if enabled
+  // Apply delay if enabled
   if (useDelayEnabled) {
     // Dry delay path
     mainOutputNode.connect(delayDryGainNode);
@@ -579,7 +681,6 @@ export const setWallDelayMix = (amount) => {
   wallDelayMix = Math.max(0, Math.min(1.0, amount))
 }
 
-// Wall delay parameter getters
 export const getWallDelayEnabled = () => wallDelayEnabled
 export const getWallDelayTime = () => wallDelayTime
 export const getWallDelayFeedback = () => wallDelayFeedback
@@ -602,13 +703,12 @@ export const setCircleDelayMix = (amount) => {
   circleDelayMix = Math.max(0, Math.min(1.0, amount))
 }
 
-// Circle delay parameter getters
 export const getCircleDelayEnabled = () => circleDelayEnabled
 export const getCircleDelayTime = () => circleDelayTime
 export const getCircleDelayFeedback = () => circleDelayFeedback
 export const getCircleDelayMix = () => circleDelayMix
 
-// Legacy delay parameter setters (affect both wall and circle)
+// Legacy delay parameter setters (affects both)
 export const setDelayEnabled = (enabled) => {
   wallDelayEnabled = enabled
   circleDelayEnabled = enabled
@@ -632,8 +732,7 @@ export const setDelayMix = (amount) => {
   circleDelayMix = clampedAmount
 }
 
-// Legacy delay parameter getters (return circle values for consistency)
-export const getDelayEnabled = () => circleDelayEnabled
+export const getDelayEnabled = () => circleDelayEnabled // Return circle value for consistency
 export const getDelayTime = () => circleDelayTime
 export const getDelayFeedback = () => circleDelayFeedback
 export const getDelayMix = () => circleDelayMix
@@ -655,7 +754,6 @@ export const setWallReverbMix = (amount) => {
   wallReverbMix = Math.max(0, Math.min(1.0, amount))
 }
 
-// Wall reverb parameter getters
 export const getWallReverbEnabled = () => wallReverbEnabled
 export const getWallReverbRoomSize = () => wallReverbRoomSize
 export const getWallReverbDamping = () => wallReverbDamping
@@ -678,13 +776,12 @@ export const setCircleReverbMix = (amount) => {
   circleReverbMix = Math.max(0, Math.min(1.0, amount))
 }
 
-// Circle reverb parameter getters
 export const getCircleReverbEnabled = () => circleReverbEnabled
 export const getCircleReverbRoomSize = () => circleReverbRoomSize
 export const getCircleReverbDamping = () => circleReverbDamping
 export const getCircleReverbMix = () => circleReverbMix
 
-// Legacy reverb parameter setters (affect both wall and circle)
+// Legacy reverb parameter setters (affects both)
 export const setReverbEnabled = (enabled) => {
   wallReverbEnabled = enabled
   circleReverbEnabled = enabled
@@ -708,8 +805,7 @@ export const setReverbMix = (amount) => {
   circleReverbMix = clampedAmount
 }
 
-// Legacy reverb parameter getters (return circle values for consistency)
-export const getReverbEnabled = () => circleReverbEnabled
+export const getReverbEnabled = () => circleReverbEnabled // Return circle value for consistency
 export const getReverbRoomSize = () => circleReverbRoomSize
 export const getReverbDamping = () => circleReverbDamping
 export const getReverbMix = () => circleReverbMix
@@ -733,7 +829,6 @@ export const setWallDistortionMix = (amount) => {
   wallDistortionMix = Math.max(0, Math.min(1.0, amount))
 }
 
-// Wall distortion parameter getters
 export const getWallDistortionEnabled = () => wallDistortionEnabled
 export const getWallDistortionAmount = () => wallDistortionAmount
 export const getWallDistortionOversample = () => wallDistortionOversample
@@ -758,13 +853,12 @@ export const setCircleDistortionMix = (amount) => {
   circleDistortionMix = Math.max(0, Math.min(1.0, amount))
 }
 
-// Circle distortion parameter getters
 export const getCircleDistortionEnabled = () => circleDistortionEnabled
 export const getCircleDistortionAmount = () => circleDistortionAmount
 export const getCircleDistortionOversample = () => circleDistortionOversample
 export const getCircleDistortionMix = () => circleDistortionMix
 
-// Legacy distortion parameter setters (affect both wall and circle)
+// Legacy distortion parameter setters (affects both)
 export const setDistortionEnabled = (enabled) => {
   wallDistortionEnabled = enabled
   circleDistortionEnabled = enabled
@@ -789,11 +883,105 @@ export const setDistortionMix = (amount) => {
   circleDistortionMix = clampedAmount
 }
 
-// Legacy distortion parameter getters (return circle values for consistency)
-export const getDistortionEnabled = () => circleDistortionEnabled
+export const getDistortionEnabled = () => circleDistortionEnabled // Return circle value for consistency
 export const getDistortionAmount = () => circleDistortionAmount
 export const getDistortionOversample = () => circleDistortionOversample
 export const getDistortionMix = () => circleDistortionMix
+
+// Wall tremolo parameter setters
+export const setWallTremoloEnabled = (enabled) => {
+  wallTremoloEnabled = enabled
+}
+
+export const setWallTremoloRate = (rate) => {
+  wallTremoloRate = Math.max(0.1, Math.min(20.0, rate))
+}
+
+export const setWallTremoloDepth = (depth) => {
+  wallTremoloDepth = Math.max(0, Math.min(1.0, depth))
+}
+
+export const setWallTremoloShape = (shape) => {
+  if (WAVEFORMS.find(w => w.id === shape)) {
+    wallTremoloShape = shape
+  }
+}
+
+export const setWallTremoloMix = (amount) => {
+  wallTremoloMix = Math.max(0, Math.min(1.0, amount))
+}
+
+export const getWallTremoloEnabled = () => wallTremoloEnabled
+export const getWallTremoloRate = () => wallTremoloRate
+export const getWallTremoloDepth = () => wallTremoloDepth
+export const getWallTremoloShape = () => wallTremoloShape
+export const getWallTremoloMix = () => wallTremoloMix
+
+// Circle tremolo parameter setters
+export const setCircleTremoloEnabled = (enabled) => {
+  circleTremoloEnabled = enabled
+}
+
+export const setCircleTremoloRate = (rate) => {
+  circleTremoloRate = Math.max(0.1, Math.min(20.0, rate))
+}
+
+export const setCircleTremoloDepth = (depth) => {
+  circleTremoloDepth = Math.max(0, Math.min(1.0, depth))
+}
+
+export const setCircleTremoloShape = (shape) => {
+  if (WAVEFORMS.find(w => w.id === shape)) {
+    circleTremoloShape = shape
+  }
+}
+
+export const setCircleTremoloMix = (amount) => {
+  circleTremoloMix = Math.max(0, Math.min(1.0, amount))
+}
+
+export const getCircleTremoloEnabled = () => circleTremoloEnabled
+export const getCircleTremoloRate = () => circleTremoloRate
+export const getCircleTremoloDepth = () => circleTremoloDepth
+export const getCircleTremoloShape = () => circleTremoloShape
+export const getCircleTremoloMix = () => circleTremoloMix
+
+// Legacy tremolo parameter setters (affects both)
+export const setTremoloEnabled = (enabled) => {
+  wallTremoloEnabled = enabled
+  circleTremoloEnabled = enabled
+}
+
+export const setTremoloRate = (rate) => {
+  const clampedRate = Math.max(0.1, Math.min(20.0, rate))
+  wallTremoloRate = clampedRate
+  circleTremoloRate = clampedRate
+}
+
+export const setTremoloDepth = (depth) => {
+  const clampedDepth = Math.max(0, Math.min(1.0, depth))
+  wallTremoloDepth = clampedDepth
+  circleTremoloDepth = clampedDepth
+}
+
+export const setTremoloShape = (shape) => {
+  if (WAVEFORMS.find(w => w.id === shape)) {
+    wallTremoloShape = shape
+    circleTremoloShape = shape
+  }
+}
+
+export const setTremoloMix = (amount) => {
+  const clampedAmount = Math.max(0, Math.min(1.0, amount))
+  wallTremoloMix = clampedAmount
+  circleTremoloMix = clampedAmount
+}
+
+export const getTremoloEnabled = () => circleTremoloEnabled // Return circle value for consistency
+export const getTremoloRate = () => circleTremoloRate
+export const getTremoloDepth = () => circleTremoloDepth
+export const getTremoloShape = () => circleTremoloShape
+export const getTremoloMix = () => circleTremoloMix
 
 // Wall volume setter/getter
 export const setWallVolume = (volume) => {
@@ -818,12 +1006,9 @@ export const setVolume = (volume) => {
 
 export const getVolume = () => circleSoundVolume // Return circle value for consistency
 
-// Cleanup function for component unmount
+// Cleanup function
 export const cleanup = () => {
-  cleanupAudioNodes(activeNodes);
-  activeNodes.clear();
   if (audioContext) {
-    audioContext.close();
-    audioContext = null;
+    cleanupAudioNodes(activeNodes)
   }
 }
