@@ -1,5 +1,6 @@
 {
-  "name": "my-gsap-app",
+  "homepage": "https://circlegetsquare.github.io/boingboing/",
+  "name": "boingboing",
   "private": true,
   "version": "0.0.0",
   "type": "module",

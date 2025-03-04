@@ -12,10 +12,43 @@ import {
   getWallDuration,
   setCircleDuration,
   getCircleDuration,
+  // Wall detune parameters
+  setWallDetune,
+  getWallDetune,
+  // Circle detune parameters
+  setCircleDetune,
+  getCircleDetune,
+  // Legacy detune parameters
   setDetune,
   getDetune,
+  // Wall waveform parameters
+  setWallWaveform,
+  getWallWaveform,
+  // Circle waveform parameters
+  setCircleWaveform,
+  getCircleWaveform,
+  // Legacy waveform parameters
   setWaveform,
   getWaveform,
+  // Wall delay parameters
+  setWallDelayEnabled,
+  getWallDelayEnabled,
+  setWallDelayTime,
+  getWallDelayTime,
+  setWallDelayFeedback,
+  getWallDelayFeedback,
+  setWallDelayMix,
+  getWallDelayMix,
+  // Circle delay parameters
+  setCircleDelayEnabled,
+  getCircleDelayEnabled,
+  setCircleDelayTime,
+  getCircleDelayTime,
+  setCircleDelayFeedback,
+  getCircleDelayFeedback,
+  setCircleDelayMix,
+  getCircleDelayMix,
+  // Legacy delay parameters (for backward compatibility)
   setDelayEnabled,
   getDelayEnabled,
   setDelayTime,
@@ -24,6 +57,102 @@ import {
   getDelayFeedback,
   setDelayMix,
   getDelayMix,
+  // Wall reverb parameters
+  setWallReverbEnabled,
+  getWallReverbEnabled,
+  setWallReverbRoomSize,
+  getWallReverbRoomSize,
+  setWallReverbDamping,
+  getWallReverbDamping,
+  setWallReverbMix,
+  getWallReverbMix,
+  // Circle reverb parameters
+  setCircleReverbEnabled,
+  getCircleReverbEnabled,
+  setCircleReverbRoomSize,
+  getCircleReverbRoomSize,
+  setCircleReverbDamping,
+  getCircleReverbDamping,
+  setCircleReverbMix,
+  getCircleReverbMix,
+  // Legacy reverb parameters
+  setReverbEnabled,
+  getReverbEnabled,
+  setReverbRoomSize,
+  getReverbRoomSize,
+  setReverbDamping,
+  getReverbDamping,
+  setReverbMix,
+  getReverbMix,
+  // Wall distortion parameters
+  setWallDistortionEnabled,
+  getWallDistortionEnabled,
+  setWallDistortionAmount,
+  getWallDistortionAmount,
+  setWallDistortionOversample,
+  getWallDistortionOversample,
+  setWallDistortionMix,
+  getWallDistortionMix,
+  // Circle distortion parameters
+  setCircleDistortionEnabled,
+  getCircleDistortionEnabled,
+  setCircleDistortionAmount,
+  getCircleDistortionAmount,
+  setCircleDistortionOversample,
+  getCircleDistortionOversample,
+  setCircleDistortionMix,
+  getCircleDistortionMix,
+  // Legacy distortion parameters
+  setDistortionEnabled,
+  getDistortionEnabled,
+  setDistortionAmount,
+  getDistortionAmount,
+  setDistortionOversample,
+  getDistortionOversample,
+  setDistortionMix,
+  getDistortionMix,
+  // Wall tremolo parameters
+  setWallTremoloEnabled,
+  getWallTremoloEnabled,
+  setWallTremoloRate,
+  getWallTremoloRate,
+  setWallTremoloDepth,
+  getWallTremoloDepth,
+  setWallTremoloShape,
+  getWallTremoloShape,
+  setWallTremoloMix,
+  getWallTremoloMix,
+  // Circle tremolo parameters
+  setCircleTremoloEnabled,
+  getCircleTremoloEnabled,
+  setCircleTremoloRate,
+  getCircleTremoloRate,
+  setCircleTremoloDepth,
+  getCircleTremoloDepth,
+  setCircleTremoloShape,
+  getCircleTremoloShape,
+  setCircleTremoloMix,
+  getCircleTremoloMix,
+  // Legacy tremolo parameters
+  setTremoloEnabled,
+  getTremoloEnabled,
+  setTremoloRate,
+  getTremoloRate,
+  setTremoloDepth,
+  getTremoloDepth,
+  setTremoloShape,
+  getTremoloShape,
+  setTremoloMix,
+  getTremoloMix,
+  // Wall volume parameters
+  setWallVolume,
+  getWallVolume,
+  // Circle volume parameters
+  setCircleVolume,
+  getCircleVolume,
+  // Legacy volume parameters
+  setVolume,
+  getVolume,
   cleanup as cleanupAudio
 } from '../utils/sound'
 import { checkCircleCollision, resolveCollision } from '../utils/physics'
@@ -33,12 +162,12 @@ const INITIAL_SPEED = 15 // Fixed maximum speed for new circles
 // Squish animation constants
 const WALL_SQUISH = {
   compress: 0.8,  // Less compression (was 0.5)
-  stretch: 1.1    // Less stretch (was 1.2)
+  stretch: 1    // Less stretch (was 1.2)
 }
 
 const CIRCLE_SQUISH = {
-  compress: 0.85, // Less compression (was 0.7)
-  stretch: 1.15   // Less stretch (was 1.3)
+  compress: 0.8, // Less compression (was 0.7)
+  stretch: 1   // Less stretch (was 1.3)
 }
 
 const controlsContainerStyles = {
@@ -116,14 +245,66 @@ export default function BouncingCircles() {
   const [backgroundColors, setBackgroundColors] = useState(generateInitialColors())
   const [isAnimating, setIsAnimating] = useState(true)
   const [currentScale, setCurrentScale] = useState('C_MAJOR')
+  const [showControls, setShowControls] = useState(false)
   const [wallDuration, setWallDurationState] = useState(getWallDuration())
   const [circleDuration, setCircleDurationState] = useState(getCircleDuration())
-  const [detune, setDetuneState] = useState(getDetune())
-  const [waveform, setWaveformState] = useState(getWaveform())
-  const [delayEnabled, setDelayEnabledState] = useState(getDelayEnabled())
-  const [delayTime, setDelayTimeState] = useState(getDelayTime())
-  const [delayFeedback, setDelayFeedbackState] = useState(getDelayFeedback())
-  const [delayMix, setDelayMixState] = useState(getDelayMix())
+  const [wallDetune, setWallDetuneState] = useState(getWallDetune())
+  const [circleDetune, setCircleDetuneState] = useState(getCircleDetune())
+  const [wallWaveform, setWallWaveformState] = useState(getWallWaveform())
+  const [circleWaveform, setCircleWaveformState] = useState(getCircleWaveform())
+  // Wall delay state
+  const [wallDelayEnabled, setWallDelayEnabledState] = useState(getWallDelayEnabled())
+  const [wallDelayTime, setWallDelayTimeState] = useState(getWallDelayTime())
+  const [wallDelayFeedback, setWallDelayFeedbackState] = useState(getWallDelayFeedback())
+  const [wallDelayMix, setWallDelayMixState] = useState(getWallDelayMix())
+  
+  // Circle delay state
+  const [circleDelayEnabled, setCircleDelayEnabledState] = useState(getCircleDelayEnabled())
+  const [circleDelayTime, setCircleDelayTimeState] = useState(getCircleDelayTime())
+  const [circleDelayFeedback, setCircleDelayFeedbackState] = useState(getCircleDelayFeedback())
+  const [circleDelayMix, setCircleDelayMixState] = useState(getCircleDelayMix())
+  
+  // Wall reverb state
+  const [wallReverbEnabled, setWallReverbEnabledState] = useState(getWallReverbEnabled())
+  const [wallReverbRoomSize, setWallReverbRoomSizeState] = useState(getWallReverbRoomSize())
+  const [wallReverbDamping, setWallReverbDampingState] = useState(getWallReverbDamping())
+  const [wallReverbMix, setWallReverbMixState] = useState(getWallReverbMix())
+  
+  // Circle reverb state
+  const [circleReverbEnabled, setCircleReverbEnabledState] = useState(getCircleReverbEnabled())
+  const [circleReverbRoomSize, setCircleReverbRoomSizeState] = useState(getCircleReverbRoomSize())
+  const [circleReverbDamping, setCircleReverbDampingState] = useState(getCircleReverbDamping())
+  const [circleReverbMix, setCircleReverbMixState] = useState(getCircleReverbMix())
+  
+  // Wall distortion state
+  const [wallDistortionEnabled, setWallDistortionEnabledState] = useState(getWallDistortionEnabled())
+  const [wallDistortionAmount, setWallDistortionAmountState] = useState(getWallDistortionAmount())
+  const [wallDistortionOversample, setWallDistortionOversampleState] = useState(getWallDistortionOversample())
+  const [wallDistortionMix, setWallDistortionMixState] = useState(getWallDistortionMix())
+  
+  // Circle distortion state
+  const [circleDistortionEnabled, setCircleDistortionEnabledState] = useState(getCircleDistortionEnabled())
+  const [circleDistortionAmount, setCircleDistortionAmountState] = useState(getCircleDistortionAmount())
+  const [circleDistortionOversample, setCircleDistortionOversampleState] = useState(getCircleDistortionOversample())
+  const [circleDistortionMix, setCircleDistortionMixState] = useState(getCircleDistortionMix())
+  
+  // Wall tremolo state
+  const [wallTremoloEnabled, setWallTremoloEnabledState] = useState(getWallTremoloEnabled())
+  const [wallTremoloRate, setWallTremoloRateState] = useState(getWallTremoloRate())
+  const [wallTremoloDepth, setWallTremoloDepthState] = useState(getWallTremoloDepth())
+  const [wallTremoloShape, setWallTremoloShapeState] = useState(getWallTremoloShape())
+  const [wallTremoloMix, setWallTremoloMixState] = useState(getWallTremoloMix())
+  
+  // Circle tremolo state
+  const [circleTremoloEnabled, setCircleTremoloEnabledState] = useState(getCircleTremoloEnabled())
+  const [circleTremoloRate, setCircleTremoloRateState] = useState(getCircleTremoloRate())
+  const [circleTremoloDepth, setCircleTremoloDepthState] = useState(getCircleTremoloDepth())
+  const [circleTremoloShape, setCircleTremoloShapeState] = useState(getCircleTremoloShape())
+  const [circleTremoloMix, setCircleTremoloMixState] = useState(getCircleTremoloMix())
+  
+  // Volume state
+  const [wallVolume, setWallVolumeState] = useState(getWallVolume())
+  const [circleVolume, setCircleVolumeState] = useState(getCircleVolume())
   const circleRefs = useRef(new Map())
   const circleStates = useRef(new Map())
   const tickerFunctions = useRef(new Map())
@@ -236,39 +417,248 @@ export default function BouncingCircles() {
     setCircleDuration(newDuration)
   }
 
-  const handleDetuneChange = (e) => {
+  const handleWallDetuneChange = (e) => {
     const newDetune = Number(e.target.value)
-    setDetuneState(newDetune)
-    setDetune(newDetune)
+    setWallDetuneState(newDetune)
+    setWallDetune(newDetune)
   }
 
-  const handleWaveformChange = (newWaveform) => {
-    setWaveformState(newWaveform)
-    setWaveform(newWaveform)
+  const handleCircleDetuneChange = (e) => {
+    const newDetune = Number(e.target.value)
+    setCircleDetuneState(newDetune)
+    setCircleDetune(newDetune)
   }
 
-  const handleDelayEnabledChange = (e) => {
+  const handleWallWaveformChange = (newWaveform) => {
+    setWallWaveformState(newWaveform)
+    setWallWaveform(newWaveform)
+  }
+
+  const handleCircleWaveformChange = (newWaveform) => {
+    setCircleWaveformState(newWaveform)
+    setCircleWaveform(newWaveform)
+  }
+
+  // Wall delay handlers
+  const handleWallDelayEnabledChange = (e) => {
     const enabled = e.target.checked
-    setDelayEnabledState(enabled)
-    setDelayEnabled(enabled)
+    setWallDelayEnabledState(enabled)
+    setWallDelayEnabled(enabled)
   }
 
-  const handleDelayTimeChange = (e) => {
+  const handleWallDelayTimeChange = (e) => {
     const time = Number(e.target.value)
-    setDelayTimeState(time)
-    setDelayTime(time)
+    setWallDelayTimeState(time)
+    setWallDelayTime(time)
   }
 
-  const handleDelayFeedbackChange = (e) => {
+  const handleWallDelayFeedbackChange = (e) => {
     const amount = Number(e.target.value)
-    setDelayFeedbackState(amount)
-    setDelayFeedback(amount)
+    setWallDelayFeedbackState(amount)
+    setWallDelayFeedback(amount)
   }
 
-  const handleDelayMixChange = (e) => {
+  const handleWallDelayMixChange = (e) => {
     const amount = Number(e.target.value)
-    setDelayMixState(amount)
-    setDelayMix(amount)
+    setWallDelayMixState(amount)
+    setWallDelayMix(amount)
+  }
+
+  // Circle delay handlers
+  const handleCircleDelayEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setCircleDelayEnabledState(enabled)
+    setCircleDelayEnabled(enabled)
+  }
+
+  const handleCircleDelayTimeChange = (e) => {
+    const time = Number(e.target.value)
+    setCircleDelayTimeState(time)
+    setCircleDelayTime(time)
+  }
+
+  const handleCircleDelayFeedbackChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleDelayFeedbackState(amount)
+    setCircleDelayFeedback(amount)
+  }
+
+  const handleCircleDelayMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleDelayMixState(amount)
+    setCircleDelayMix(amount)
+  }
+  
+  // Wall reverb handlers
+  const handleWallReverbEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setWallReverbEnabledState(enabled)
+    setWallReverbEnabled(enabled)
+  }
+  
+  const handleWallReverbRoomSizeChange = (e) => {
+    const size = Number(e.target.value)
+    setWallReverbRoomSizeState(size)
+    setWallReverbRoomSize(size)
+  }
+  
+  const handleWallReverbDampingChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallReverbDampingState(amount)
+    setWallReverbDamping(amount)
+  }
+  
+  const handleWallReverbMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallReverbMixState(amount)
+    setWallReverbMix(amount)
+  }
+  
+  // Circle reverb handlers
+  const handleCircleReverbEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setCircleReverbEnabledState(enabled)
+    setCircleReverbEnabled(enabled)
+  }
+  
+  const handleCircleReverbRoomSizeChange = (e) => {
+    const size = Number(e.target.value)
+    setCircleReverbRoomSizeState(size)
+    setCircleReverbRoomSize(size)
+  }
+  
+  const handleCircleReverbDampingChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleReverbDampingState(amount)
+    setCircleReverbDamping(amount)
+  }
+  
+  const handleCircleReverbMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleReverbMixState(amount)
+    setCircleReverbMix(amount)
+  }
+  
+  // Wall distortion handlers
+  const handleWallDistortionEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setWallDistortionEnabledState(enabled)
+    setWallDistortionEnabled(enabled)
+  }
+  
+  const handleWallDistortionAmountChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallDistortionAmountState(amount)
+    setWallDistortionAmount(amount)
+  }
+  
+  const handleWallDistortionOversampleChange = (oversample) => {
+    setWallDistortionOversampleState(oversample)
+    setWallDistortionOversample(oversample)
+  }
+  
+  const handleWallDistortionMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallDistortionMixState(amount)
+    setWallDistortionMix(amount)
+  }
+  
+  // Circle distortion handlers
+  const handleCircleDistortionEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setCircleDistortionEnabledState(enabled)
+    setCircleDistortionEnabled(enabled)
+  }
+  
+  const handleCircleDistortionAmountChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleDistortionAmountState(amount)
+    setCircleDistortionAmount(amount)
+  }
+  
+  const handleCircleDistortionOversampleChange = (oversample) => {
+    setCircleDistortionOversampleState(oversample)
+    setCircleDistortionOversample(oversample)
+  }
+  
+  const handleCircleDistortionMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleDistortionMixState(amount)
+    setCircleDistortionMix(amount)
+  }
+  
+  // Wall tremolo handlers
+  const handleWallTremoloEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setWallTremoloEnabledState(enabled)
+    setWallTremoloEnabled(enabled)
+  }
+  
+  const handleWallTremoloRateChange = (e) => {
+    const rate = Number(e.target.value)
+    setWallTremoloRateState(rate)
+    setWallTremoloRate(rate)
+  }
+  
+  const handleWallTremoloDepthChange = (e) => {
+    const depth = Number(e.target.value)
+    setWallTremoloDepthState(depth)
+    setWallTremoloDepth(depth)
+  }
+  
+  const handleWallTremoloShapeChange = (shape) => {
+    setWallTremoloShapeState(shape)
+    setWallTremoloShape(shape)
+  }
+  
+  const handleWallTremoloMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setWallTremoloMixState(amount)
+    setWallTremoloMix(amount)
+  }
+  
+  // Circle tremolo handlers
+  const handleCircleTremoloEnabledChange = (e) => {
+    const enabled = e.target.checked
+    setCircleTremoloEnabledState(enabled)
+    setCircleTremoloEnabled(enabled)
+  }
+  
+  const handleCircleTremoloRateChange = (e) => {
+    const rate = Number(e.target.value)
+    setCircleTremoloRateState(rate)
+    setCircleTremoloRate(rate)
+  }
+  
+  const handleCircleTremoloDepthChange = (e) => {
+    const depth = Number(e.target.value)
+    setCircleTremoloDepthState(depth)
+    setCircleTremoloDepth(depth)
+  }
+  
+  const handleCircleTremoloShapeChange = (shape) => {
+    setCircleTremoloShapeState(shape)
+    setCircleTremoloShape(shape)
+  }
+  
+  const handleCircleTremoloMixChange = (e) => {
+    const amount = Number(e.target.value)
+    setCircleTremoloMixState(amount)
+    setCircleTremoloMix(amount)
+  }
+  
+  // Wall volume handler
+  const handleWallVolumeChange = (e) => {
+    const volume = Number(e.target.value)
+    setWallVolumeState(volume)
+    setWallVolume(volume)
+  }
+  
+  // Circle volume handler
+  const handleCircleVolumeChange = (e) => {
+    const volume = Number(e.target.value)
+    setCircleVolumeState(volume)
+    setCircleVolume(volume)
   }
 
   const generateRandomColor = () => {
@@ -296,7 +686,7 @@ export default function BouncingCircles() {
         scaleX: WALL_SQUISH.compress,
         scaleY: WALL_SQUISH.stretch,
         duration: 0.1,
-        ease: "elastic.out(1, 0.3)"
+        ease: "elastic.out(1, 0.1)"
       }).to(circleEl, {
         scaleX: 1,
         scaleY: 1,
@@ -335,7 +725,24 @@ export default function BouncingCircles() {
       rotation: `${angle}rad`,
       transformOrigin: "center center",
       duration: 0.1,
-      ease: "elastic.out(1, 0.3)"
+      ease: "elastic.out(1, 0.3)",
+      onStart: () => {
+        // Get the RGB colors from the border
+        const color1 = window.getComputedStyle(circleEl).borderColor
+        const color2 = window.getComputedStyle(otherCircleEl).borderColor
+        
+        // Add glow effect with respective colors
+        circleEl.style.animation = 'none'
+        otherCircleEl.style.animation = 'none'
+        // Force reflow
+        void circleEl.offsetWidth
+        void otherCircleEl.offsetWidth
+        // Set box-shadow color and start animation
+        circleEl.style.boxShadow = `0 0 0 0 ${color1}`
+        otherCircleEl.style.boxShadow = `0 0 0 0 ${color2}`
+        circleEl.style.animation = 'collisionGlow .8s ease-out forwards'
+        otherCircleEl.style.animation = 'collisionGlow .8s ease-out forwards'
+      }
     }).to([circleEl, otherCircleEl], {
       scaleX: 1,
       scaleY: 1,
@@ -496,160 +903,793 @@ export default function BouncingCircles() {
   return (
     <>
       <div style={controlsContainerStyles}>
-        <div style={scaleButtonsStyles}>
-          {AVAILABLE_SCALES.map(scale => (
-            <button
-              key={scale.id}
-              onClick={() => handleScaleChange(scale.id)}
-              style={{
-                ...buttonStyles,
-                backgroundColor: currentScale === scale.id ? '#9333ea' : '#6b21a8',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#7e22ce'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 
-                  currentScale === scale.id ? '#9333ea' : '#6b21a8'
-              }}
-            >
-              {scale.name}
-            </button>
-          ))}
+        {/* Global Controls - Musical Scale */}
+        <div style={{marginBottom: '20px'}}>
+          <label style={{...labelStyles, fontWeight: 'bold', fontSize: '16px', marginBottom: '8px', display: 'block'}}>
+            Musical Scale
+          </label>
+          <div style={scaleButtonsStyles}>
+            {AVAILABLE_SCALES.map(scale => (
+              <button
+                key={scale.id}
+                onClick={() => handleScaleChange(scale.id)}
+                style={{
+                  ...buttonStyles,
+                  backgroundColor: currentScale === scale.id ? '#9333ea' : '#6b21a8',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#7e22ce'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 
+                    currentScale === scale.id ? '#9333ea' : '#6b21a8'
+                }}
+              >
+                {scale.name}
+              </button>
+            ))}
+          </div>
         </div>
-        <div style={scaleButtonsStyles}>
-          {WAVEFORMS.map(wave => (
-            <button
-              key={wave.id}
-              onClick={() => handleWaveformChange(wave.id)}
-              style={{
-                ...buttonStyles,
-                backgroundColor: waveform === wave.id ? '#9333ea' : '#6b21a8',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#7e22ce'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 
-                  waveform === wave.id ? '#9333ea' : '#6b21a8'
-              }}
-            >
-              {wave.name}
-            </button>
-          ))}
+        
+        {/* Show Controls Button */}
+        <div style={{marginBottom: '20px'}}>
+          <button
+            onClick={() => setShowControls(!showControls)}
+            style={{
+              ...buttonStyles,
+              backgroundColor: 'transparent',
+              color: '#6b21a8',
+              border: '2px solid #6b21a8',
+              width: '100%',
+              padding: '10px 16px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'transparent'
+            }}
+          >
+            <div style={{ minWidth: '110px', textAlign: 'center' }}>
+              {showControls ? 'Vibe out' : 'Get weird'}
+            </div>
+          </button>
         </div>
-        <div style={sliderContainerStyles}>
+
+        {showControls && (
+          <>
+            {/* Wall Sound Controls */}
+        <div style={{marginBottom: '20px', padding: '12px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px'}}>
+          <label style={{...labelStyles, fontWeight: 'bold', fontSize: '16px', marginBottom: '12px', display: 'block'}}>
+            Wall Sound Controls
+          </label>
+          
+          {/* Wall Waveform */}
+          <div style={{marginBottom: '16px'}}>
+            <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginBottom: '8px'}}>
+              Waveform
+            </label>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '8px'
+            }}>
+              {WAVEFORMS.map(wave => (
+                <button
+                  key={wave.id}
+                  onClick={() => handleWallWaveformChange(wave.id)}
+                  style={{
+                    ...buttonStyles,
+                    backgroundColor: wallWaveform === wave.id ? '#9333ea' : '#6b21a8',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#7e22ce'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 
+                      wallWaveform === wave.id ? '#9333ea' : '#6b21a8'
+                  }}
+                >
+                  {wave.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Wall Volume */}
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Wall Sound Duration: {wallDuration.toFixed(2)}s
+              Volume: {(wallVolume * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1.0"
+              step="0.05"
+              value={wallVolume}
+              onChange={handleWallVolumeChange}
+              style={sliderStyles}
+            />
+          </div>
+          
+          {/* Wall Duration */}
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Duration: {wallDuration.toFixed(2)}s
             </label>
             <input
               type="range"
               min="0.05"
-              max="1.0"
+              max="5.0"
               step="0.05"
               value={wallDuration}
               onChange={handleWallDurationChange}
               style={sliderStyles}
             />
           </div>
+          
+          {/* Wall Detune */}
           <div style={sliderGroupStyles}>
             <label style={labelStyles}>
-              Ball Collision Duration: {circleDuration.toFixed(2)}s
-            </label>
-            <input
-              type="range"
-              min="0.05"
-              max="1.0"
-              step="0.05"
-              value={circleDuration}
-              onChange={handleCircleDurationChange}
-              style={sliderStyles}
-            />
-          </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Detune: {detune} cents
+              Detune: {wallDetune} cents
             </label>
             <input
               type="range"
               min="-1200"
               max="1200"
               step="100"
-              value={detune}
-              onChange={handleDetuneChange}
+              value={wallDetune}
+              onChange={handleWallDetuneChange}
               style={sliderStyles}
             />
           </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              <input
-                type="checkbox"
-                checked={delayEnabled}
-                onChange={handleDelayEnabledChange}
-                style={checkboxStyles}
-              />
-              Enable Delay
-            </label>
+          
+          {/* Wall Delay Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Delay Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={wallDelayEnabled}
+                  onChange={handleWallDelayEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Delay
+              </label>
+            </div>
+            
+            {wallDelayEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Delay Time: {wallDelayTime.toFixed(2)}s
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.1"
+                    value={wallDelayTime}
+                    onChange={handleWallDelayTimeChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Feedback: {(wallDelayFeedback * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.9"
+                    step="0.1"
+                    value={wallDelayFeedback}
+                    onChange={handleWallDelayFeedbackChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(wallDelayMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={wallDelayMix}
+                    onChange={handleWallDelayMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
           </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Delay Time: {delayTime.toFixed(2)}s
-            </label>
-            <input
-              type="range"
-              min="0.1"
-              max="1.0"
-              step="0.1"
-              value={delayTime}
-              onChange={handleDelayTimeChange}
-              style={{
-                ...sliderStyles,
-                opacity: delayEnabled ? 1 : 0.5,
-                cursor: delayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!delayEnabled}
-            />
+          
+          {/* Wall Reverb Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Reverb Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={wallReverbEnabled}
+                  onChange={handleWallReverbEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Reverb
+              </label>
+            </div>
+            
+            {wallReverbEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Room Size: {(wallReverbRoomSize * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallReverbRoomSize}
+                    onChange={handleWallReverbRoomSizeChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Damping: {(wallReverbDamping * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallReverbDamping}
+                    onChange={handleWallReverbDampingChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(wallReverbMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallReverbMix}
+                    onChange={handleWallReverbMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
           </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Feedback: {(delayFeedback * 100).toFixed(0)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="0.9"
-              step="0.1"
-              value={delayFeedback}
-              onChange={handleDelayFeedbackChange}
-              style={{
-                ...sliderStyles,
-                opacity: delayEnabled ? 1 : 0.5,
-                cursor: delayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!delayEnabled}
-            />
+          
+          {/* Wall Distortion Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Distortion Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={wallDistortionEnabled}
+                  onChange={handleWallDistortionEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Distortion
+              </label>
+            </div>
+            
+            {wallDistortionEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Amount: {(wallDistortionAmount * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={wallDistortionAmount}
+                    onChange={handleWallDistortionAmountChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={{...labelStyles, marginBottom: '8px'}}>
+                    Oversample: {wallDistortionOversample}
+                  </label>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px'
+                  }}>
+                    {['none', '2x', '4x'].map(option => (
+                      <button
+                        key={option}
+                        onClick={() => handleWallDistortionOversampleChange(option)}
+                        style={{
+                          ...buttonStyles,
+                          backgroundColor: wallDistortionOversample === option ? '#9333ea' : '#6b21a8',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#7e22ce'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 
+                            wallDistortionOversample === option ? '#9333ea' : '#6b21a8'
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(wallDistortionMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallDistortionMix}
+                    onChange={handleWallDistortionMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
           </div>
-          <div style={sliderGroupStyles}>
-            <label style={labelStyles}>
-              Mix: {(delayMix * 100).toFixed(0)}%
-            </label>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={delayMix}
-              onChange={handleDelayMixChange}
-              style={{
-                ...sliderStyles,
-                opacity: delayEnabled ? 1 : 0.5,
-                cursor: delayEnabled ? 'pointer' : 'not-allowed'
-              }}
-              disabled={!delayEnabled}
-            />
+          
+          {/* Wall Tremolo Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Tremolo Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={wallTremoloEnabled}
+                  onChange={handleWallTremoloEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Tremolo
+              </label>
+            </div>
+            
+            {wallTremoloEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Rate: {wallTremoloRate.toFixed(1)} Hz
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="20.0"
+                    step="0.1"
+                    value={wallTremoloRate}
+                    onChange={handleWallTremoloRateChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Depth: {(wallTremoloDepth * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={wallTremoloDepth}
+                    onChange={handleWallTremoloDepthChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                {/* Shape control removed and defaulted to "sine" */}
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(wallTremoloMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={wallTremoloMix}
+                    onChange={handleWallTremoloMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
+        
+        {/* Ball Collision Sound Controls */}
+        <div style={{padding: '12px', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderRadius: '4px'}}>
+          <label style={{...labelStyles, fontWeight: 'bold', fontSize: '16px', marginBottom: '12px', display: 'block'}}>
+            Ball Collision Sound Controls
+          </label>
+          
+          {/* Ball Waveform */}
+          <div style={{marginBottom: '16px'}}>
+            <label style={{...labelStyles, fontWeight: 'bold', display: 'block', marginBottom: '8px'}}>
+              Waveform
+            </label>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '8px'
+            }}>
+              {WAVEFORMS.map(wave => (
+                <button
+                  key={wave.id}
+                  onClick={() => handleCircleWaveformChange(wave.id)}
+                  style={{
+                    ...buttonStyles,
+                    backgroundColor: circleWaveform === wave.id ? '#9333ea' : '#6b21a8',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#7e22ce'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 
+                      circleWaveform === wave.id ? '#9333ea' : '#6b21a8'
+                  }}
+                >
+                  {wave.name}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Ball Volume */}
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Volume: {(circleVolume * 100).toFixed(0)}%
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1.0"
+              step="0.05"
+              value={circleVolume}
+              onChange={handleCircleVolumeChange}
+              style={sliderStyles}
+            />
+          </div>
+          
+          {/* Ball Duration */}
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Duration: {circleDuration.toFixed(2)}s
+            </label>
+            <input
+              type="range"
+              min="0.05"
+              max="5.0"
+              step="0.05"
+              value={circleDuration}
+              onChange={handleCircleDurationChange}
+              style={sliderStyles}
+            />
+          </div>
+          
+          {/* Ball Detune */}
+          <div style={sliderGroupStyles}>
+            <label style={labelStyles}>
+              Detune: {circleDetune} cents
+            </label>
+            <input
+              type="range"
+              min="-1200"
+              max="1200"
+              step="100"
+              value={circleDetune}
+              onChange={handleCircleDetuneChange}
+              style={sliderStyles}
+            />
+          </div>
+          
+          {/* Ball Delay Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Delay Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={circleDelayEnabled}
+                  onChange={handleCircleDelayEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Delay
+              </label>
+            </div>
+            
+            {circleDelayEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Delay Time: {circleDelayTime.toFixed(2)}s
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.1"
+                    value={circleDelayTime}
+                    onChange={handleCircleDelayTimeChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Feedback: {(circleDelayFeedback * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="0.9"
+                    step="0.1"
+                    value={circleDelayFeedback}
+                    onChange={handleCircleDelayFeedbackChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(circleDelayMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={circleDelayMix}
+                    onChange={handleCircleDelayMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Ball Reverb Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Reverb Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={circleReverbEnabled}
+                  onChange={handleCircleReverbEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Reverb
+              </label>
+            </div>
+            
+            {circleReverbEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Room Size: {(circleReverbRoomSize * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleReverbRoomSize}
+                    onChange={handleCircleReverbRoomSizeChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Damping: {(circleReverbDamping * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleReverbDamping}
+                    onChange={handleCircleReverbDampingChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(circleReverbMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleReverbMix}
+                    onChange={handleCircleReverbMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Ball Distortion Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Distortion Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={circleDistortionEnabled}
+                  onChange={handleCircleDistortionEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Distortion
+              </label>
+            </div>
+            
+            {circleDistortionEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Amount: {(circleDistortionAmount * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={circleDistortionAmount}
+                    onChange={handleCircleDistortionAmountChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={{...labelStyles, marginBottom: '8px'}}>
+                    Oversample: {circleDistortionOversample}
+                  </label>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '8px'
+                  }}>
+                    {['none', '2x', '4x'].map(option => (
+                      <button
+                        key={option}
+                        onClick={() => handleCircleDistortionOversampleChange(option)}
+                        style={{
+                          ...buttonStyles,
+                          backgroundColor: circleDistortionOversample === option ? '#9333ea' : '#6b21a8',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#7e22ce'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 
+                            circleDistortionOversample === option ? '#9333ea' : '#6b21a8'
+                        }}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(circleDistortionMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleDistortionMix}
+                    onChange={handleCircleDistortionMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          
+          {/* Ball Tremolo Controls */}
+          <div style={{marginTop: '16px'}}>
+            <div style={sliderGroupStyles}>
+              <label style={{...labelStyles, fontWeight: 'bold'}}>
+                Tremolo Effect
+              </label>
+              <label style={labelStyles}>
+                <input
+                  type="checkbox"
+                  checked={circleTremoloEnabled}
+                  onChange={handleCircleTremoloEnabledChange}
+                  style={checkboxStyles}
+                />
+                Enable Tremolo
+              </label>
+            </div>
+            
+            {circleTremoloEnabled && (
+              <>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Rate: {circleTremoloRate.toFixed(1)} Hz
+                  </label>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="20.0"
+                    step="0.1"
+                    value={circleTremoloRate}
+                    onChange={handleCircleTremoloRateChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Depth: {(circleTremoloDepth * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.05"
+                    value={circleTremoloDepth}
+                    onChange={handleCircleTremoloDepthChange}
+                    style={sliderStyles}
+                  />
+                </div>
+                <div style={sliderGroupStyles}>
+                  <label style={labelStyles}>
+                    Mix: {(circleTremoloMix * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1.0"
+                    step="0.1"
+                    value={circleTremoloMix}
+                    onChange={handleCircleTremoloMixChange}
+                    style={sliderStyles}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+          </>
+        )}
       </div>
       <div
         ref={containerRef}
@@ -668,6 +1708,18 @@ export default function BouncingCircles() {
           touchAction: 'none'
         }}
       >
+        <style>
+          {`
+            @keyframes collisionGlow {
+              0% {
+                box-shadow: 0 0 12px 2px inset currentColor;
+              }
+              100% {
+                box-shadow: 0 0 0 0 currentColor;
+              }
+            }
+          `}
+        </style>
         {circles.map(circle => {
           // Convert HSL to RGB for rgba background
           const div = document.createElement('div')
@@ -685,8 +1737,11 @@ export default function BouncingCircles() {
                 width: `${circle.size}px`,
                 height: `${circle.size}px`,
                 borderRadius: '50%',
+                color: circle.color,
                 border: `2px solid ${circle.color}`,
                 backgroundColor: rgbColor.replace('rgb', 'rgba').replace(')', ', 0.25)'),
+                boxShadow: '0 0 0px 0px',
+                animationFillMode: 'forwards',
                 willChange: 'transform',
                 pointerEvents: 'none'
               }}
