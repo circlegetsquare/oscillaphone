@@ -162,12 +162,12 @@ const INITIAL_SPEED = 15 // Fixed maximum speed for new circles
 // Squish animation constants
 const WALL_SQUISH = {
   compress: 0.8,  // Less compression (was 0.5)
-  stretch: 1.1    // Less stretch (was 1.2)
+  stretch: 1    // Less stretch (was 1.2)
 }
 
 const CIRCLE_SQUISH = {
-  compress: 0.85, // Less compression (was 0.7)
-  stretch: 1.15   // Less stretch (was 1.3)
+  compress: 0.8, // Less compression (was 0.7)
+  stretch: 1   // Less stretch (was 1.3)
 }
 
 const controlsContainerStyles = {
@@ -725,7 +725,24 @@ export default function BouncingCircles() {
       rotation: `${angle}rad`,
       transformOrigin: "center center",
       duration: 0.1,
-      ease: "elastic.out(1, 0.3)"
+      ease: "elastic.out(1, 0.3)",
+      onStart: () => {
+        // Get the RGB colors from the border
+        const color1 = window.getComputedStyle(circleEl).borderColor
+        const color2 = window.getComputedStyle(otherCircleEl).borderColor
+        
+        // Add glow effect with respective colors
+        circleEl.style.animation = 'none'
+        otherCircleEl.style.animation = 'none'
+        // Force reflow
+        void circleEl.offsetWidth
+        void otherCircleEl.offsetWidth
+        // Set box-shadow color and start animation
+        circleEl.style.boxShadow = `0 0 0 0 ${color1}`
+        otherCircleEl.style.boxShadow = `0 0 0 0 ${color2}`
+        circleEl.style.animation = 'collisionGlow .8s ease-out forwards'
+        otherCircleEl.style.animation = 'collisionGlow .8s ease-out forwards'
+      }
     }).to([circleEl, otherCircleEl], {
       scaleX: 1,
       scaleY: 1,
@@ -1654,36 +1671,6 @@ export default function BouncingCircles() {
                   />
                 </div>
                 <div style={sliderGroupStyles}>
-                  <label style={{...labelStyles, marginBottom: '8px'}}>
-                    Shape
-                  </label>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '8px'
-                  }}>
-                    {WAVEFORMS.map(wave => (
-                      <button
-                        key={wave.id}
-                        onClick={() => handleCircleTremoloShapeChange(wave.id)}
-                        style={{
-                          ...buttonStyles,
-                          backgroundColor: circleTremoloShape === wave.id ? '#9333ea' : '#6b21a8',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#7e22ce'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 
-                            circleTremoloShape === wave.id ? '#9333ea' : '#6b21a8'
-                        }}
-                      >
-                        {wave.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div style={sliderGroupStyles}>
                   <label style={labelStyles}>
                     Mix: {(circleTremoloMix * 100).toFixed(0)}%
                   </label>
@@ -1721,6 +1708,18 @@ export default function BouncingCircles() {
           touchAction: 'none'
         }}
       >
+        <style>
+          {`
+            @keyframes collisionGlow {
+              0% {
+                box-shadow: 0 0 12px 2px inset currentColor;
+              }
+              100% {
+                box-shadow: 0 0 0 0 currentColor;
+              }
+            }
+          `}
+        </style>
         {circles.map(circle => {
           // Convert HSL to RGB for rgba background
           const div = document.createElement('div')
@@ -1738,8 +1737,11 @@ export default function BouncingCircles() {
                 width: `${circle.size}px`,
                 height: `${circle.size}px`,
                 borderRadius: '50%',
+                color: circle.color,
                 border: `2px solid ${circle.color}`,
                 backgroundColor: rgbColor.replace('rgb', 'rgba').replace(')', ', 0.25)'),
+                boxShadow: '0 0 0px 0px',
+                animationFillMode: 'forwards',
                 willChange: 'transform',
                 pointerEvents: 'none'
               }}
