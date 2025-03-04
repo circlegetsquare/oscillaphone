@@ -106,7 +106,7 @@ let circleDetuneAmount = 0 // Default detune for circle sounds
 let wallWaveform = 'sine' // Default waveform for wall sounds
 let circleWaveform = 'sine' // Default waveform for circle sounds
 let wallSoundVolume = 0.15 // Default wall sound volume
-let circleSoundVolume = 0.2 // Default circle sound volume
+let circleSoundVolume = 0.15 // Default circle sound volume
 
 // Delay parameters for wall sounds
 let wallDelayEnabled = false
@@ -570,11 +570,15 @@ export const playBeep = (pan = 0) => {
   createBeep(note, 0.15, 0.3, pan)
 }
 
-// Get a random note for circle collisions
+// Play two simultaneous notes for circle collisions
 export const playCollisionBeep = (pan = 0) => {
-  const group = Math.random() < 0.5 ? 'CIRCLE_HIGH' : 'CIRCLE_HIGHER';
-  const note = getRandomNote(group);
-  createBeep(note, circleSoundDuration, circleSoundVolume, pan, 'circle');
+  // Get one note from each group for harmony
+  const note1 = getRandomNote('CIRCLE_HIGH');
+  const note2 = getRandomNote('CIRCLE_HIGHER');
+  
+  // Play both notes simultaneously
+  createBeep(note1, circleSoundDuration, circleSoundVolume, pan, 'circle');
+  createBeep(note2, circleSoundDuration, circleSoundVolume, pan, 'circle');
 }
 
 // Get a random note for wall collisions
@@ -599,7 +603,7 @@ export const setScale = (scale) => {
 
 // Export wall duration setter
 export const setWallDuration = (duration) => {
-  wallSoundDuration = Math.max(0.05, Math.min(1.0, duration))
+  wallSoundDuration = Math.max(0.05, Math.min(5.0, duration))
 }
 
 // Export wall duration getter
@@ -607,7 +611,7 @@ export const getWallDuration = () => wallSoundDuration
 
 // Export circle duration setter
 export const setCircleDuration = (duration) => {
-  circleSoundDuration = Math.max(0.05, Math.min(1.0, duration))
+  circleSoundDuration = Math.max(0.05, Math.min(5.0, duration))
 }
 
 // Export circle duration getter

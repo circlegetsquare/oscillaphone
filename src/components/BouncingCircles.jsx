@@ -686,7 +686,7 @@ export default function BouncingCircles() {
         scaleX: WALL_SQUISH.compress,
         scaleY: WALL_SQUISH.stretch,
         duration: 0.1,
-        ease: "elastic.out(1, 0.3)"
+        ease: "elastic.out(1, 0.1)"
       }).to(circleEl, {
         scaleX: 1,
         scaleY: 1,
@@ -931,7 +931,7 @@ export default function BouncingCircles() {
               gap: '8px'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(107, 33, 168, 0.1)'
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent'
@@ -1007,7 +1007,7 @@ export default function BouncingCircles() {
             <input
               type="range"
               min="0.05"
-              max="1.0"
+              max="5.0"
               step="0.05"
               value={wallDuration}
               onChange={handleWallDurationChange}
@@ -1289,36 +1289,7 @@ export default function BouncingCircles() {
                     style={sliderStyles}
                   />
                 </div>
-                <div style={sliderGroupStyles}>
-                  <label style={{...labelStyles, marginBottom: '8px'}}>
-                    Shape
-                  </label>
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: '8px'
-                  }}>
-                    {WAVEFORMS.map(wave => (
-                      <button
-                        key={wave.id}
-                        onClick={() => handleWallTremoloShapeChange(wave.id)}
-                        style={{
-                          ...buttonStyles,
-                          backgroundColor: wallTremoloShape === wave.id ? '#9333ea' : '#6b21a8',
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.backgroundColor = '#7e22ce'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = 
-                            wallTremoloShape === wave.id ? '#9333ea' : '#6b21a8'
-                        }}
-                      >
-                        {wave.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                {/* Shape control removed and defaulted to "sine" */}
                 <div style={sliderGroupStyles}>
                   <label style={labelStyles}>
                     Mix: {(wallTremoloMix * 100).toFixed(0)}%
@@ -1400,7 +1371,7 @@ export default function BouncingCircles() {
             <input
               type="range"
               min="0.05"
-              max="1.0"
+              max="5.0"
               step="0.05"
               value={circleDuration}
               onChange={handleCircleDurationChange}
