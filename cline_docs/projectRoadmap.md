@@ -37,6 +37,7 @@
 - [x] Delay effect with configurable parameters
 - [x] Reverb effect with configurable room size, damping, and mix
 - [x] Distortion effect with configurable amount, oversample, and mix
+- [x] Tremolo effect with configurable rate, depth, and mix
 
 ## Future Scalability Considerations
 - Additional musical scales and sound patterns
@@ -44,4 +45,4 @@
 - Integration with route transitions
 - Performance optimization for larger applications
 - Component library expansion
-- [x] Advanced audio features (filters, effects, etc.) - Added delay, reverb, and distortion effects
+- [x] Advanced audio features (filters, effects, etc.) - Added delay, reverb, distortion, and tremolo effects

@@ -29,6 +29,7 @@
   - Sound generation and control
   - Stereo panning
   - Configurable durations
+  - Audio effects (delay, reverb, distortion, tremolo)
 
 - **physics.js**: Collision system
   - Circle collision detection
@@ -83,6 +84,7 @@ graph TD
 - Added configurable sound durations
 - Enhanced collision animations
 - Improved UI controls
+- Implemented audio effects (delay, reverb, distortion, tremolo)
 
 ## User Feedback Integration
 - Sound duration controls added based on needs

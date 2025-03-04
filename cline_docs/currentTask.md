@@ -21,6 +21,7 @@ This task relates to the following completed goals from projectRoadmap.md:
    - Delay effect with configurable parameters
    - Reverb effect with configurable room size, damping, and mix
    - Distortion effect with configurable amount, oversample, and mix
+   - Tremolo effect with configurable rate, depth, and mix
 
 2. Animation Features:
    - Physics-based circle movements

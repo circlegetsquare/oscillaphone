@@ -312,6 +312,7 @@ export default function BouncingCircles() {
   const wallCollisionStates = useRef(new Map())
   const squishAnimations = useRef(new Map())
   const backgroundTimeline = useRef(null)
+  const buttonTimeline = useRef(null)
 
   const generateGradient = (colors, progress) => {
     // Convert HSL colors to HSLA with opacity
@@ -945,13 +946,58 @@ export default function BouncingCircles() {
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              gap: '8px'
+              gap: '8px',
+              position: 'relative',
+              overflow: 'hidden',
+              transition: 'color 0.3s ease'
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+              const button = e.currentTarget;
+              const colors = generateInitialColors();
+              
+              // Kill any existing timeline
+              if (buttonTimeline.current) {
+                buttonTimeline.current.kill();
+              }
+              
+              const timeline = gsap.timeline({ 
+                repeat: -1,
+                onUpdate: () => {
+                  const progress = timeline.progress();
+                  const gradient = generateGradient(colors, progress);
+                  button.style.background = gradient;
+                }
+              });
+
+              // Create a simple tween that drives the progress
+              timeline.to({}, {
+                duration: 4,
+                ease: "none"
+              });
+
+              buttonTimeline.current = timeline;
+              
+              // Animate text color
+              gsap.to(button, {
+                color: 'white',
+                duration: 0.3
+              });
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent'
+              const button = e.currentTarget;
+              
+              // Kill the gradient animation
+              if (buttonTimeline.current) {
+                buttonTimeline.current.kill();
+                buttonTimeline.current = null;
+              }
+              
+              // Reset the background and text color
+              gsap.to(button, {
+                background: 'transparent',
+                color: '#6b21a8',
+                duration: 0.3
+              });
             }}
           >
             <div style={{ minWidth: '110px', textAlign: 'center' }}>
@@ -1708,18 +1754,19 @@ export default function BouncingCircles() {
           touchAction: 'none'
         }}
       >
-        <style>
-          {`
-            @keyframes collisionGlow {
-              0% {
-                box-shadow: 0 0 12px 2px inset currentColor;
+          <style>
+            {`
+              @keyframes collisionGlow {
+                0% {
+                  box-shadow: 0 0 12px 2px inset currentColor;
+                }
+                100% {
+                  box-shadow: 0 0 0 0 currentColor;
+                }
               }
-              100% {
-                box-shadow: 0 0 0 0 currentColor;
-              }
-            }
-          `}
-        </style>
+              
+            `}
+          </style>
         {circles.map(circle => {
           // Convert HSL to RGB for rgba background
           const div = document.createElement('div')
