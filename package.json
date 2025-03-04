@@ -1,5 +1,6 @@
 {
-  "name": "my-gsap-app",
+  "homepage": "https://yourusername.github.io/your-repo-name",
+  "name": "boingboing",
   "private": true,
   "version": "0.0.0",
   "type": "module",
