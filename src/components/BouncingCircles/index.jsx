@@ -13,6 +13,7 @@ import gsap from 'gsap'
 export default function BouncingCircles() {
   const [showControls, setShowControls] = useState(false)
   const [backgroundColors, setBackgroundColors] = useState([])
+  const [ballSpeed, setBallSpeed] = useState(15) // Default speed matches the original INITIAL_SPEED
   const buttonRef = useRef(null)
   const buttonTimeline = useRef(null)
   
@@ -163,11 +164,18 @@ export default function BouncingCircles() {
         </div>
 
         {/* Audio Controls */}
-        <AudioControls visible={showControls} />
+        <AudioControls 
+          visible={showControls} 
+          speed={ballSpeed} 
+          setSpeed={setBallSpeed} 
+        />
       </div>
       
       {/* Circle Canvas */}
-      <CircleCanvas onBackgroundChange={handleBackgroundChange} />
+      <CircleCanvas 
+        onBackgroundChange={handleBackgroundChange} 
+        initialSpeed={ballSpeed} 
+      />
     </AudioProvider>
   )
 }

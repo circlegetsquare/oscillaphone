@@ -20,16 +20,14 @@ const CIRCLE_SQUISH = {
   stretch: 1      // Less stretch
 }
 
-// Initial speed for new circles
-const INITIAL_SPEED = 15
-
 /**
  * Component for rendering and animating circles
  * 
  * @param {Object} props - Component props
  * @param {Function} props.onBackgroundChange - Callback when background colors change
+ * @param {number} props.initialSpeed - Initial speed for new circles
  */
-export default function CircleCanvas({ onBackgroundChange }) {
+export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) {
   const containerRef = useRef(null)
   const circleRefs = useRef(new Map())
   const squishAnimations = useRef(new Map())
@@ -246,13 +244,13 @@ export default function CircleCanvas({ onBackgroundChange }) {
     // Add color to palette
     addToColorPalette(color)
     
-    // Calculate initial velocities with fixed speed
+    // Calculate initial velocities with the current speed setting
     const radians = (angle * Math.PI) / 180
     const initialState = {
       x: e.clientX - bounds.left,
       y: e.clientY - bounds.top,
-      vx: Math.cos(radians) * INITIAL_SPEED,
-      vy: Math.sin(radians) * INITIAL_SPEED,
+      vx: Math.cos(radians) * initialSpeed,
+      vy: Math.sin(radians) * initialSpeed,
       radius: size / 2,
       color
     }
