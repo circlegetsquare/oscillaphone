@@ -17,6 +17,21 @@
   - Rich feature set including ScrollTrigger
 - Implementation through custom hooks for React integration
 
+### Web Audio API
+- Browser-native audio processing capabilities
+- Used for dynamic sound generation and manipulation
+- Features implemented:
+  - Oscillator-based sound synthesis
+  - Stereo panning based on spatial position
+  - Multiple musical scales (C Major, A Minor, F Lydian)
+  - Audio effects processing chain:
+    - Delay with feedback
+    - Custom reverb simulation
+    - Distortion with waveshaping
+    - Tremolo with LFO modulation
+  - Volume optimization for multiple simultaneous sounds
+  - Proper resource management and cleanup
+
 ### Build Tools
 - Vite (v5.0.8)
   - Fast development server
@@ -48,6 +63,16 @@
   - Dependency array for controlled updates
 - Centralized animation utilities
 - ScrollTrigger integration for scroll-based animations
+
+### Audio Architecture
+- Centralized audio context management
+- Modular audio processing chain
+- Separate control systems for different sound types:
+  - Wall collision sounds
+  - Circle collision sounds
+- Context API for global audio state management
+- Cooldown mechanisms to prevent audio overload
+- Resource cleanup to prevent memory leaks
 
 ### File Organization
 - Structured by feature and type

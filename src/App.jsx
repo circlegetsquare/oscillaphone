@@ -1,4 +1,4 @@
-import BouncingCircles from './components/BouncingCircles'
+import BouncingCircles from './components/BouncingCircles/index'
 
 function App() {
   return <BouncingCircles />
