@@ -101,7 +101,7 @@ export default function EffectControls({
         <div style={{ marginTop: '16px' }}>
           <div style={{ marginBottom: '8px' }}>
             <Checkbox
-              label="Enable Delay"
+              label="Delay"
               checked={delay.enabled.value}
               onChange={delay.enabled.onChange}
             />
@@ -149,7 +149,7 @@ export default function EffectControls({
         <div style={{ marginTop: '16px' }}>
           <div style={{ marginBottom: '8px' }}>
             <Checkbox
-              label="Enable Reverb"
+              label="Reverb"
               checked={reverb.enabled.value}
               onChange={reverb.enabled.onChange}
             />
@@ -197,7 +197,7 @@ export default function EffectControls({
         <div style={{ marginTop: '16px' }}>
           <div style={{ marginBottom: '8px' }}>
             <Checkbox
-              label="Enable Distortion"
+              label="Distortion"
               checked={distortion.enabled.value}
               onChange={distortion.enabled.onChange}
             />
@@ -261,7 +261,7 @@ export default function EffectControls({
         <div style={{ marginTop: '16px' }}>
           <div style={{ marginBottom: '8px' }}>
             <Checkbox
-              label="Enable Tremolo"
+              label="Tremolo"
               checked={tremolo.enabled.value}
               onChange={tremolo.enabled.onChange}
             />
