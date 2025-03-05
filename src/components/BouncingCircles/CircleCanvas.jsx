@@ -349,12 +349,13 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     })
   }
   
+  // Track last collision time for each pair of circles using a ref to persist across re-renders
+  const lastCollisionTimes = useRef(new Map());
+  // Cooldown period in milliseconds
+  const COLLISION_COOLDOWN = 300;
+  
   // Handle circle collisions in animation frame
   useEffect(() => {
-    // Track last collision time for each pair of circles
-    const lastCollisionTimes = new Map();
-    // Cooldown period in milliseconds
-    const COLLISION_COOLDOWN = 300;
     
     const handleCollisions = () => {
       if (!containerRef.current) return
@@ -376,7 +377,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
         
         if (circleEl1 && circleEl2) {
           // Check if enough time has passed since the last collision
-          const lastCollisionTime = lastCollisionTimes.get(pairKey) || 0;
+          const lastCollisionTime = lastCollisionTimes.current.get(pairKey) || 0;
           const timeSinceLastCollision = currentTime - lastCollisionTime;
           
           // Always play the squish animation
@@ -388,7 +389,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
             playCollisionBeep(pan);
             
             // Update the last collision time
-            lastCollisionTimes.set(pairKey, currentTime);
+            lastCollisionTimes.current.set(pairKey, currentTime);
           }
         }
       })

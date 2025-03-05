@@ -96,91 +96,43 @@ export default function EffectControls({
         style={{ marginBottom: '16px' }}
       />
       
-      {/* Delay Effect Controls */}
-      {delay && (
+      {/* Tremolo Effect Controls */}
+      {tremolo && (
         <div style={{ marginTop: '16px' }}>
           <div style={{ marginBottom: '8px' }}>
             <Checkbox
-              label="Delay"
-              checked={delay.enabled.value}
-              onChange={delay.enabled.onChange}
+              label="Tremolo"
+              checked={tremolo.enabled.value}
+              onChange={tremolo.enabled.onChange}
             />
           </div>
           
-          {delay.enabled.value && (
+          {tremolo.enabled.value && (
             <>
               <Slider
-                label="Delay Time"
-                value={delay.time.value}
-                onChange={delay.time.onChange}
+                label="Rate"
+                value={tremolo.rate.value}
+                onChange={tremolo.rate.onChange}
                 min={0.1}
-                max={1.0}
+                max={20.0}
                 step={0.1}
-                formatValue={(val) => `${val.toFixed(2)}s`}
+                formatValue={(val) => `${val.toFixed(1)} Hz`}
                 style={{ marginBottom: '8px' }}
               />
               <Slider
-                label="Feedback"
-                value={delay.feedback.value}
-                onChange={delay.feedback.onChange}
+                label="Depth"
+                value={tremolo.depth.value}
+                onChange={tremolo.depth.onChange}
                 min={0}
-                max={0.9}
-                step={0.1}
+                max={1.0}
+                step={0.05}
                 formatValue={(val) => `${(val * 100).toFixed(0)}%`}
                 style={{ marginBottom: '8px' }}
               />
               <Slider
                 label="Mix"
-                value={delay.mix.value}
-                onChange={delay.mix.onChange}
-                min={0}
-                max={1}
-                step={0.1}
-                formatValue={(val) => `${(val * 100).toFixed(0)}%`}
-                style={{ marginBottom: '16px' }}
-              />
-            </>
-          )}
-        </div>
-      )}
-      
-      {/* Reverb Effect Controls */}
-      {reverb && (
-        <div style={{ marginTop: '16px' }}>
-          <div style={{ marginBottom: '8px' }}>
-            <Checkbox
-              label="Reverb"
-              checked={reverb.enabled.value}
-              onChange={reverb.enabled.onChange}
-            />
-          </div>
-          
-          {reverb.enabled.value && (
-            <>
-              <Slider
-                label="Room Size"
-                value={reverb.roomSize.value}
-                onChange={reverb.roomSize.onChange}
-                min={0}
-                max={1.0}
-                step={0.1}
-                formatValue={(val) => `${(val * 100).toFixed(0)}%`}
-                style={{ marginBottom: '8px' }}
-              />
-              <Slider
-                label="Damping"
-                value={reverb.damping.value}
-                onChange={reverb.damping.onChange}
-                min={0}
-                max={1.0}
-                step={0.1}
-                formatValue={(val) => `${(val * 100).toFixed(0)}%`}
-                style={{ marginBottom: '8px' }}
-              />
-              <Slider
-                label="Mix"
-                value={reverb.mix.value}
-                onChange={reverb.mix.onChange}
+                value={tremolo.mix.value}
+                onChange={tremolo.mix.onChange}
                 min={0}
                 max={1.0}
                 step={0.1}
@@ -256,45 +208,93 @@ export default function EffectControls({
         </div>
       )}
       
-      {/* Tremolo Effect Controls */}
-      {tremolo && (
+      {/* Reverb Effect Controls */}
+      {reverb && (
         <div style={{ marginTop: '16px' }}>
           <div style={{ marginBottom: '8px' }}>
             <Checkbox
-              label="Tremolo"
-              checked={tremolo.enabled.value}
-              onChange={tremolo.enabled.onChange}
+              label="Reverb"
+              checked={reverb.enabled.value}
+              onChange={reverb.enabled.onChange}
             />
           </div>
           
-          {tremolo.enabled.value && (
+          {reverb.enabled.value && (
             <>
               <Slider
-                label="Rate"
-                value={tremolo.rate.value}
-                onChange={tremolo.rate.onChange}
-                min={0.1}
-                max={20.0}
+                label="Room Size"
+                value={reverb.roomSize.value}
+                onChange={reverb.roomSize.onChange}
+                min={0}
+                max={1.0}
                 step={0.1}
-                formatValue={(val) => `${val.toFixed(1)} Hz`}
+                formatValue={(val) => `${(val * 100).toFixed(0)}%`}
                 style={{ marginBottom: '8px' }}
               />
               <Slider
-                label="Depth"
-                value={tremolo.depth.value}
-                onChange={tremolo.depth.onChange}
+                label="Damping"
+                value={reverb.damping.value}
+                onChange={reverb.damping.onChange}
                 min={0}
                 max={1.0}
-                step={0.05}
+                step={0.1}
                 formatValue={(val) => `${(val * 100).toFixed(0)}%`}
                 style={{ marginBottom: '8px' }}
               />
               <Slider
                 label="Mix"
-                value={tremolo.mix.value}
-                onChange={tremolo.mix.onChange}
+                value={reverb.mix.value}
+                onChange={reverb.mix.onChange}
                 min={0}
                 max={1.0}
+                step={0.1}
+                formatValue={(val) => `${(val * 100).toFixed(0)}%`}
+                style={{ marginBottom: '16px' }}
+              />
+            </>
+          )}
+        </div>
+      )}
+      
+      {/* Delay Effect Controls */}
+      {delay && (
+        <div style={{ marginTop: '16px' }}>
+          <div style={{ marginBottom: '8px' }}>
+            <Checkbox
+              label="Delay"
+              checked={delay.enabled.value}
+              onChange={delay.enabled.onChange}
+            />
+          </div>
+          
+          {delay.enabled.value && (
+            <>
+              <Slider
+                label="Delay Time"
+                value={delay.time.value}
+                onChange={delay.time.onChange}
+                min={0.1}
+                max={1.0}
+                step={0.1}
+                formatValue={(val) => `${val.toFixed(2)}s`}
+                style={{ marginBottom: '8px' }}
+              />
+              <Slider
+                label="Feedback"
+                value={delay.feedback.value}
+                onChange={delay.feedback.onChange}
+                min={0}
+                max={0.9}
+                step={0.1}
+                formatValue={(val) => `${(val * 100).toFixed(0)}%`}
+                style={{ marginBottom: '8px' }}
+              />
+              <Slider
+                label="Mix"
+                value={delay.mix.value}
+                onChange={delay.mix.onChange}
+                min={0}
+                max={1}
                 step={0.1}
                 formatValue={(val) => `${(val * 100).toFixed(0)}%`}
                 style={{ marginBottom: '16px' }}
