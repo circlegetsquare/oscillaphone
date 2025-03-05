@@ -10,16 +10,6 @@ export default function ScaleSelector() {
   
   return (
     <div style={{ marginBottom: '20px' }}>
-      <label style={{
-        color: 'white',
-        fontWeight: 'bold',
-        fontSize: '16px',
-        marginBottom: '8px',
-        display: 'block',
-        fontFamily: 'system-ui, sans-serif'
-      }}>
-        Musical Scale
-      </label>
       <div style={{
         display: 'flex',
         gap: '8px',
