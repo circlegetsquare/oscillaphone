@@ -10,14 +10,47 @@ import {
 } from '../../utils/sound'
 
 // Squish animation constants
-const WALL_SQUISH = {
-  compress: 0.8,  // Less compression
-  stretch: 1      // Less stretch
+const SQUISH_LIMITS = {
+  MIN_VELOCITY: 5,    // Minimum velocity to start scaling squish
+  MAX_VELOCITY: 30,   // Velocity at which max squish is reached
+  MIN_COMPRESS: 0.9,  // Minimum compression (least squish)
+  MAX_COMPRESS: 0.6,  // Maximum compression (most squish)
+  MIN_STRETCH: 1.05,  // Minimum stretch
+  MAX_STRETCH: 1.2    // Maximum stretch
 }
 
-const CIRCLE_SQUISH = {
-  compress: 0.8,  // Less compression
-  stretch: 1      // Less stretch
+/**
+ * Map a velocity to a squish amount
+ * @param {number} velocity - The velocity to map
+ * @param {number} minVal - Minimum output value
+ * @param {number} maxVal - Maximum output value
+ * @returns {number} Mapped squish amount
+ */
+const mapVelocityToSquish = (velocity, minVal, maxVal) => {
+  // Get the absolute velocity
+  const absVelocity = Math.abs(velocity)
+  
+  // Clamp velocity between min and max
+  const clampedVelocity = Math.min(Math.max(absVelocity, SQUISH_LIMITS.MIN_VELOCITY), SQUISH_LIMITS.MAX_VELOCITY)
+  
+  // Calculate how far between min and max velocity we are (0 to 1)
+  const velocityProgress = (clampedVelocity - SQUISH_LIMITS.MIN_VELOCITY) / 
+    (SQUISH_LIMITS.MAX_VELOCITY - SQUISH_LIMITS.MIN_VELOCITY)
+  
+  // Lerp between min and max values
+  return minVal + (maxVal - minVal) * velocityProgress
+}
+
+/**
+ * Calculate squish amounts based on velocity
+ * @param {number} velocity - The collision velocity
+ * @returns {{compress: number, stretch: number}} Squish amounts
+ */
+const calculateSquishAmounts = (velocity) => {
+  return {
+    compress: mapVelocityToSquish(velocity, SQUISH_LIMITS.MIN_COMPRESS, SQUISH_LIMITS.MAX_COMPRESS),
+    stretch: mapVelocityToSquish(velocity, SQUISH_LIMITS.MIN_STRETCH, SQUISH_LIMITS.MAX_STRETCH)
+  }
 }
 
 /**
@@ -119,12 +152,47 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     }
   }, [colorPalette, backgroundColors.length, updateBackgroundColors])
   
-  // Cleanup effect
+  // Cleanup animations periodically
   useEffect(() => {
+    const CLEANUP_INTERVAL = 1000; // Check every second
+    const GRACE_PERIOD = 500; // Extra time to allow for animations to complete
+
+    const cleanupAnimations = () => {
+      const now = Date.now();
+      squishAnimations.current.forEach((data, element) => {
+        // Check if animation has exceeded its expected duration (plus grace period)
+        if (now > data.expectedEndTime + GRACE_PERIOD) {
+          // Kill the animation
+          if (data.timeline) {
+            data.timeline.kill();
+          }
+          // Reset the element's transform properties
+          gsap.set(element, {
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0
+          });
+          // Remove from the animations map
+          squishAnimations.current.delete(element);
+        }
+      });
+    };
+
+    // Start the cleanup interval
+    const intervalId = setInterval(cleanupAnimations, CLEANUP_INTERVAL);
+
+    // Cleanup on unmount
     return () => {
-      // All animation cleanup is handled by the hooks
-    }
-  }, [])
+      clearInterval(intervalId);
+      // Kill all remaining animations
+      squishAnimations.current.forEach((data) => {
+        if (data.timeline) {
+          data.timeline.kill();
+        }
+      });
+      squishAnimations.current.clear();
+    };
+  }, []);
   
   /**
    * Generate a random size for a new circle
@@ -139,42 +207,79 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
    * @param {HTMLElement} circleEl - Circle element
    * @param {string} direction - 'horizontal' or 'vertical'
    */
-  const playSquishAnimation = (circleEl, direction = 'horizontal') => {
-    // Kill any existing squish animation for this circle
+  const playSquishAnimation = (circleEl, direction = 'horizontal', velocity = 0) => {
+    // Kill any existing animation for this circle
     const existingTween = squishAnimations.current.get(circleEl)
-    if (existingTween) {
-      existingTween.kill()
+    if (existingTween && existingTween.timeline) {
+      existingTween.timeline.kill()
     }
 
+    // Reset transform properties before starting new animation
+    gsap.set(circleEl, {
+      scaleX: 1,
+      scaleY: 1,
+      rotation: 0
+    })
+
+    // Calculate squish amounts based on velocity
+    const { compress, stretch } = calculateSquishAmounts(velocity)
+
     // Create new squish animation
-    const timeline = gsap.timeline()
+    const timeline = gsap.timeline({
+      onComplete: () => {
+        // Ensure circle returns to normal state
+        gsap.set(circleEl, {
+          scaleX: 1,
+          scaleY: 1,
+          rotation: 0
+        })
+        // Remove from animations map when complete
+        squishAnimations.current.delete(circleEl)
+      }
+    })
+
+    // Scale animation duration based on velocity (faster collisions = quicker animations)
+    const velocityFactor = Math.min(Math.max(Math.abs(velocity) / SQUISH_LIMITS.MAX_VELOCITY, 0.5), 1)
+    const squishDuration = 0.1 * (1 / velocityFactor)
+    const returnDuration = 0.2 * (1 / velocityFactor)
+
     if (direction === 'horizontal') {
       timeline.to(circleEl, {
-        scaleX: WALL_SQUISH.compress,
-        scaleY: WALL_SQUISH.stretch,
-        duration: 0.1,
+        scaleX: compress,
+        scaleY: stretch,
+        duration: squishDuration,
         ease: "elastic.out(1, 0.1)"
       }).to(circleEl, {
         scaleX: 1,
         scaleY: 1,
-        duration: 0.2,
-        ease: "elastic.out(1, 0.2)"
+        duration: returnDuration,
+        ease: "elastic.out(1, 0.2)",
+        delay: 0.05 // Small delay before returning to normal
       })
     } else {
       timeline.to(circleEl, {
-        scaleX: WALL_SQUISH.stretch,
-        scaleY: WALL_SQUISH.compress,
-        duration: 0.1,
+        scaleX: stretch,
+        scaleY: compress,
+        duration: squishDuration,
         ease: "elastic.out(1, 0.3)"
       }).to(circleEl, {
         scaleX: 1,
         scaleY: 1,
-        duration: 0.2,
-        ease: "elastic.out(1, 0.2)"
+        duration: returnDuration,
+        ease: "elastic.out(1, 0.2)",
+        delay: 0.05 // Small delay before returning to normal
       })
     }
 
-    squishAnimations.current.set(circleEl, timeline)
+    // Store timeline with metadata
+    const now = Date.now()
+    const expectedDuration = (squishDuration + 0.05 + returnDuration) * 1000 // Convert to milliseconds
+    
+    squishAnimations.current.set(circleEl, {
+      timeline: timeline,
+      startTime: now,
+      expectedEndTime: now + expectedDuration
+    })
   }
   
   /**
@@ -183,49 +288,101 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
    * @param {HTMLElement} otherCircleEl - Second circle element
    * @param {number} angle - Collision angle in radians
    */
-  const playCircleCollisionSquish = (circleEl, otherCircleEl, angle) => {
-    // Kill any existing squish animations
-    const existingTween1 = squishAnimations.current.get(circleEl)
-    const existingTween2 = squishAnimations.current.get(otherCircleEl)
-    if (existingTween1) existingTween1.kill()
-    if (existingTween2) existingTween2.kill()
+  const playCircleCollisionSquish = (circleEl, otherCircleEl, angle, state1, state2) => {
+    // Calculate relative velocity magnitude for squish amount
+    const dvx = state2.vx - state1.vx
+    const dvy = state2.vy - state1.vy
+    const relativeVelocity = Math.sqrt(dvx * dvx + dvy * dvy)
 
-    // Create new squish animation aligned with collision angle
-    const timeline = gsap.timeline()
-    timeline.to([circleEl, otherCircleEl], {
-      scaleX: CIRCLE_SQUISH.compress,
-      scaleY: CIRCLE_SQUISH.stretch,
-      rotation: `${angle}rad`,
-      transformOrigin: "center center",
-      duration: 0.1,
-      ease: "elastic.out(1, 0.3)",
-      onStart: () => {
-        // Get the RGB colors from the border
-        const color1 = window.getComputedStyle(circleEl).borderColor
-        const color2 = window.getComputedStyle(otherCircleEl).borderColor
-        
-        // Add glow effect with respective colors
-        circleEl.style.animation = 'none'
-        otherCircleEl.style.animation = 'none'
-        // Force reflow
-        void circleEl.offsetWidth
-        void otherCircleEl.offsetWidth
-        // Set box-shadow color and start animation
-        circleEl.style.boxShadow = `0 0 0 0 ${color1}`
-        otherCircleEl.style.boxShadow = `0 0 0 0 ${color2}`
-        circleEl.style.animation = 'collisionGlow .8s ease-out forwards'
-        otherCircleEl.style.animation = 'collisionGlow .8s ease-out forwards'
+    // Function to create a timeline for a single circle
+    const createCircleTimeline = (el, color, velocity) => {
+      // Kill any existing animation for this circle
+      const existingTween = squishAnimations.current.get(el)
+      if (existingTween && existingTween.timeline) {
+        existingTween.timeline.kill()
       }
-    }).to([circleEl, otherCircleEl], {
-      scaleX: 1,
-      scaleY: 1,
-      rotation: `${angle}rad`,
-      duration: 0.2,
-      ease: "elastic.out(1, 0.2)"
-    })
 
-    squishAnimations.current.set(circleEl, timeline)
-    squishAnimations.current.set(otherCircleEl, timeline)
+      // Reset transform properties before starting new animation
+      gsap.set(el, {
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0
+      })
+
+      // Calculate squish amounts based on velocity
+      const { compress, stretch } = calculateSquishAmounts(velocity)
+
+      // Create new squish animation
+      const timeline = gsap.timeline({
+        onComplete: () => {
+          // Ensure circle returns to normal state
+          gsap.set(el, {
+            scaleX: 1,
+            scaleY: 1,
+            rotation: 0
+          })
+          // Remove from animations map when complete
+          squishAnimations.current.delete(el)
+        }
+      })
+
+      // Scale animation duration based on velocity (faster collisions = quicker animations)
+      const velocityFactor = Math.min(Math.max(Math.abs(velocity) / SQUISH_LIMITS.MAX_VELOCITY, 0.5), 1)
+      const squishDuration = 0.1 * (1 / velocityFactor)
+      const returnDuration = 0.2 * (1 / velocityFactor)
+
+      timeline.to(el, {
+        scaleX: compress,
+        scaleY: stretch,
+        rotation: `${angle}rad`,
+        transformOrigin: "center center",
+        duration: squishDuration,
+        ease: "elastic.out(1, 0.3)",
+        onStart: () => {
+          // Add glow effect
+          el.style.animation = 'none'
+          void el.offsetWidth
+          el.style.boxShadow = `0 0 0 0 ${color}`
+          el.style.animation = 'collisionGlow .8s ease-out forwards'
+        }
+      }).to(el, {
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0,
+        duration: returnDuration,
+        ease: "elastic.out(1, 0.2)",
+        delay: 0.05 // Small delay before returning to normal
+      })
+
+      return timeline
+    }
+
+    // Get the colors for glow effects
+    const color1 = window.getComputedStyle(circleEl).borderColor
+    const color2 = window.getComputedStyle(otherCircleEl).borderColor
+
+    // Create independent timelines for each circle with relative velocity
+    const timeline1 = createCircleTimeline(circleEl, color1, relativeVelocity)
+    const timeline2 = createCircleTimeline(otherCircleEl, color2, relativeVelocity)
+
+    // Store timelines with metadata
+    const now = Date.now()
+    const velocityFactor = Math.min(Math.max(relativeVelocity / SQUISH_LIMITS.MAX_VELOCITY, 0.5), 1)
+    const squishDuration = 0.1 * (1 / velocityFactor)
+    const returnDuration = 0.2 * (1 / velocityFactor)
+    const expectedDuration = (squishDuration + 0.05 + returnDuration) * 1000 // Convert to milliseconds
+    
+    squishAnimations.current.set(circleEl, {
+      timeline: timeline1,
+      startTime: now,
+      expectedEndTime: now + expectedDuration
+    })
+    
+    squishAnimations.current.set(otherCircleEl, {
+      timeline: timeline2,
+      startTime: now,
+      expectedEndTime: now + expectedDuration
+    })
   }
   
   /**
@@ -300,11 +457,11 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
         
         // Play wall collision sound if needed
         if (hitLeftRight || hitTopBottom) {
-          // Always play squish animation
+          // Always play squish animation with velocity
           if (hitLeftRight) {
-            playSquishAnimation(circleEl, 'horizontal')
+            playSquishAnimation(circleEl, 'horizontal', Math.abs(updatedState.vx))
           } else if (hitTopBottom) {
-            playSquishAnimation(circleEl, 'vertical')
+            playSquishAnimation(circleEl, 'vertical', Math.abs(updatedState.vy))
           }
           
           // Check if enough time has passed since the last collision
@@ -349,12 +506,13 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     })
   }
   
+  // Track last collision time for each pair of circles using a ref to persist across re-renders
+  const lastCollisionTimes = useRef(new Map());
+  // Cooldown period in milliseconds
+  const COLLISION_COOLDOWN = 300;
+  
   // Handle circle collisions in animation frame
   useEffect(() => {
-    // Track last collision time for each pair of circles
-    const lastCollisionTimes = new Map();
-    // Cooldown period in milliseconds
-    const COLLISION_COOLDOWN = 300;
     
     const handleCollisions = () => {
       if (!containerRef.current) return
@@ -376,11 +534,15 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
         
         if (circleEl1 && circleEl2) {
           // Check if enough time has passed since the last collision
-          const lastCollisionTime = lastCollisionTimes.get(pairKey) || 0;
+          const lastCollisionTime = lastCollisionTimes.current.get(pairKey) || 0;
           const timeSinceLastCollision = currentTime - lastCollisionTime;
           
-          // Always play the squish animation
-          playCircleCollisionSquish(circleEl1, circleEl2, angle);
+          // Get the states of both circles
+          const state1 = circleStates.current.get(id1)
+          const state2 = circleStates.current.get(id2)
+          
+          // Always play the squish animation with velocity
+          playCircleCollisionSquish(circleEl1, circleEl2, angle, state1, state2);
           
           // Only play the sound if enough time has passed
           if (timeSinceLastCollision > COLLISION_COOLDOWN) {
@@ -388,7 +550,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
             playCollisionBeep(pan);
             
             // Update the last collision time
-            lastCollisionTimes.set(pairKey, currentTime);
+            lastCollisionTimes.current.set(pairKey, currentTime);
           }
         }
       })
