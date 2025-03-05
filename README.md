@@ -1,4 +1,4 @@
-# BoingBoing
+# Oscillaphone
 
 Let's vibe out.
 

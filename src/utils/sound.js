@@ -1,8 +1,57 @@
 // Create an audio context
 let audioContext;
 
+// Global audio processing nodes
+let globalCompressor;
+let globalLimiter;
+let globalMaster;
+
 // Keep track of active audio nodes for cleanup
 let activeNodes = new Set();
+
+// Initialize global audio processing nodes
+const initGlobalProcessing = () => {
+  if (!globalCompressor) {
+    // Create compressor for dynamic range control
+    globalCompressor = audioContext.createDynamicsCompressor();
+    globalCompressor.threshold.value = -24.0;  // Start compression at -24dB
+    globalCompressor.knee.value = 12.0;        // Soft knee for smooth compression
+    globalCompressor.ratio.value = 4.0;        // Moderate compression ratio
+    globalCompressor.attack.value = 0.003;     // Fast attack to catch transients
+    globalCompressor.release.value = 0.25;     // Moderate release
+    
+    // Create limiter (compressor with high ratio and fast attack)
+    globalLimiter = audioContext.createDynamicsCompressor();
+    globalLimiter.threshold.value = -6.0;      // Limit at -6dB
+    globalLimiter.knee.value = 0.0;            // Hard knee for true limiting
+    globalLimiter.ratio.value = 20.0;          // Very high ratio for limiting
+    globalLimiter.attack.value = 0.001;        // Very fast attack
+    globalLimiter.release.value = 0.1;         // Fast release
+    
+    // Create master volume control
+    globalMaster = audioContext.createGain();
+    globalMaster.gain.value = 1.0;             // Unity gain
+    
+    // Connect the processing chain
+    globalCompressor.connect(globalLimiter);
+    globalLimiter.connect(globalMaster);
+    globalMaster.connect(audioContext.destination);
+    
+    // Add to active nodes for cleanup
+    activeNodes.add(globalCompressor);
+    activeNodes.add(globalLimiter);
+    activeNodes.add(globalMaster);
+  }
+};
+
+// Initialize the audio context
+export const initAudioContext = () => {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    initGlobalProcessing();
+  }
+  return audioContext;
+};
 
 // Tremolo parameters for wall sounds
 let wallTremoloEnabled = false;
@@ -106,7 +155,7 @@ let circleDetuneAmount = 0 // Default detune for circle sounds
 let wallWaveform = 'sine' // Default waveform for wall sounds
 let circleWaveform = 'sine' // Default waveform for circle sounds
 let wallSoundVolume = 0.15 // Default wall sound volume
-let circleSoundVolume = 0.15 // Default circle sound volume
+let circleSoundVolume = 0.15 // Default circle sound volume (reduced to prevent distortion)
 
 // Delay parameters for wall sounds
 let wallDelayEnabled = false
@@ -374,10 +423,8 @@ const createTremoloNetwork = (audioContext, input, output, rate, depth, shape, m
 };
 
 const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType = 'circle') => {
-  // Initialize audio context on first interaction
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-  }
+  // Initialize audio context if not already initialized
+  initAudioContext();
 
   const nodes = new Set();
 
@@ -447,21 +494,20 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
   // Main signal flow
   oscillator.connect(gainNode);
   
-  // Create intermediate nodes for each effect
-  const tremoloOutputNode = audioContext.createGain();
-  const distortionOutputNode = audioContext.createGain();
-  
-  nodes.add(tremoloOutputNode);
-  nodes.add(distortionOutputNode);
-  activeNodes.add(tremoloOutputNode);
-  activeNodes.add(distortionOutputNode);
+  // Create a single signal path that we'll modify based on enabled effects
+  let currentOutput = gainNode;
   
   // Apply tremolo if enabled
   if (useTremoloEnabled) {
-    // If tremolo is enabled, create and connect the tremolo network
+    // Create an output node for tremolo
+    const tremoloOutputNode = audioContext.createGain();
+    nodes.add(tremoloOutputNode);
+    activeNodes.add(tremoloOutputNode);
+    
+    // Create and connect the tremolo network
     const tremoloNetwork = createTremoloNetwork(
       audioContext,
-      gainNode,
+      currentOutput,
       tremoloOutputNode,
       useTremoloRate,
       useTremoloDepth,
@@ -469,43 +515,51 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
       useTremoloMix,
       nodes
     );
-  } else {
-    // If no tremolo, connect directly to the output node
-    gainNode.connect(tremoloOutputNode);
+    
+    // Update current output
+    currentOutput = tremoloOutputNode;
   }
   
   // Apply distortion if enabled
   if (useDistortionEnabled) {
-    // If distortion is enabled, create and connect the distortion network
+    // Create an output node for distortion
+    const distortionOutputNode = audioContext.createGain();
+    nodes.add(distortionOutputNode);
+    activeNodes.add(distortionOutputNode);
+    
+    // Create and connect the distortion network
     const distortionNetwork = createDistortionNetwork(
       audioContext,
-      tremoloOutputNode,
+      currentOutput,
       distortionOutputNode,
       useDistortionAmount,
       useDistortionOversample,
       useDistortionMix,
       nodes
     );
-  } else {
-    // If no distortion, connect directly to the output node
-    tremoloOutputNode.connect(distortionOutputNode);
+    
+    // Update current output
+    currentOutput = distortionOutputNode;
   }
   
   // Apply reverb if enabled
   if (useReverbEnabled) {
-    // If reverb is enabled, create and connect the reverb network
+    // Create and connect the reverb network
     const reverbNetwork = createReverbNetwork(
       audioContext,
-      distortionOutputNode,
+      currentOutput,
       mainOutputNode,
       useReverbRoomSize,
       useReverbDamping,
       useReverbMix,
       nodes
     );
+    
+    // Update current output
+    currentOutput = mainOutputNode;
   } else {
-    // If no reverb, connect directly to main output
-    distortionOutputNode.connect(mainOutputNode);
+    // If no reverb, connect to main output
+    currentOutput.connect(mainOutputNode);
   }
   
   // Apply delay if enabled
@@ -527,8 +581,8 @@ const createBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType
     mainOutputNode.connect(pannerNode);
   }
   
-  // Final output
-  pannerNode.connect(audioContext.destination);
+  // Final output - connect to global processing chain instead of directly to destination
+  pannerNode.connect(globalCompressor);
 
   // Calculate maximum effect tail time for proper cleanup
   const reverbTailTime = useReverbEnabled ? 2.0 : 0; // 2 seconds for reverb tail
@@ -570,15 +624,206 @@ export const playBeep = (pan = 0) => {
   createBeep(note, 0.15, 0.3, pan)
 }
 
-// Play two simultaneous notes for circle collisions
-export const playCollisionBeep = (pan = 0) => {
-  // Get one note from each group for harmony
-  const note1 = getRandomNote('CIRCLE_HIGH');
-  const note2 = getRandomNote('CIRCLE_HIGHER');
+// Create a beep with multiple oscillators (for chords)
+const createMultiBeep = (frequencies, duration = 0.15, volume = 0.3, pan = 0, soundType = 'circle') => {
+  // Initialize audio context if not already initialized
+  initAudioContext();
+
+  const nodes = new Set();
+
+  // Create shared audio nodes
+  const gainNode = audioContext.createGain();
+  const pannerNode = audioContext.createStereoPanner();
+  const delayNode = audioContext.createDelay();
+  const feedbackNode = audioContext.createGain();
+  const delayWetGainNode = audioContext.createGain();
+  const delayDryGainNode = audioContext.createGain();
+  const mainOutputNode = audioContext.createGain(); // New output node for all effects
+
+  // Add nodes to tracking sets
+  [gainNode, pannerNode, delayNode, feedbackNode, delayWetGainNode, delayDryGainNode, mainOutputNode]
+    .forEach(node => {
+      nodes.add(node);
+      activeNodes.add(node);
+    });
+
+  // Create oscillators for each frequency
+  const oscillators = frequencies.map(frequency => {
+    const oscillator = audioContext.createOscillator();
+    nodes.add(oscillator);
+    activeNodes.add(oscillator);
+    
+    // Set up oscillator
+    const useWaveform = soundType === 'wall' ? wallWaveform : circleWaveform;
+    oscillator.type = useWaveform;
+    oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+    const useDetuneAmount = soundType === 'wall' ? wallDetuneAmount : circleDetuneAmount;
+    oscillator.detune.setValueAtTime(useDetuneAmount, audioContext.currentTime);
+    
+    // Connect to shared gain node
+    oscillator.connect(gainNode);
+    
+    return oscillator;
+  });
   
-  // Play both notes simultaneously
-  createBeep(note1, circleSoundDuration, circleSoundVolume, pan, 'circle');
-  createBeep(note2, circleSoundDuration, circleSoundVolume, pan, 'circle');
+  // Set up gain node for volume envelope
+  gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+  gainNode.gain.linearRampToValueAtTime(volume, audioContext.currentTime + 0.01);
+  gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+
+  // Set up panner
+  pannerNode.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), audioContext.currentTime);
+
+  // Set up delay effect based on sound type
+  const useDelayEnabled = soundType === 'wall' ? wallDelayEnabled : circleDelayEnabled;
+  const useDelayTime = soundType === 'wall' ? wallDelayTime : circleDelayTime;
+  const useDelayFeedback = soundType === 'wall' ? wallDelayFeedback : circleDelayFeedback;
+  const useDelayMix = soundType === 'wall' ? wallDelayMix : circleDelayMix;
+  
+  delayNode.delayTime.setValueAtTime(useDelayTime, audioContext.currentTime);
+  feedbackNode.gain.setValueAtTime(useDelayFeedback, audioContext.currentTime);
+  delayWetGainNode.gain.setValueAtTime(useDelayEnabled ? useDelayMix : 0, audioContext.currentTime);
+  delayDryGainNode.gain.setValueAtTime(useDelayEnabled ? 1 - useDelayMix : 1, audioContext.currentTime);
+
+  // Set up reverb effect based on sound type
+  const useReverbEnabled = soundType === 'wall' ? wallReverbEnabled : circleReverbEnabled;
+  const useReverbRoomSize = soundType === 'wall' ? wallReverbRoomSize : circleReverbRoomSize;
+  const useReverbDamping = soundType === 'wall' ? wallReverbDamping : circleReverbDamping;
+  const useReverbMix = soundType === 'wall' ? wallReverbMix : circleReverbMix;
+
+  // Set up distortion effect based on sound type
+  const useDistortionEnabled = soundType === 'wall' ? wallDistortionEnabled : circleDistortionEnabled;
+  const useDistortionAmount = soundType === 'wall' ? wallDistortionAmount : circleDistortionAmount;
+  const useDistortionOversample = soundType === 'wall' ? wallDistortionOversample : circleDistortionOversample;
+  const useDistortionMix = soundType === 'wall' ? wallDistortionMix : circleDistortionMix;
+
+  // Set up tremolo effect based on sound type
+  const useTremoloEnabled = soundType === 'wall' ? wallTremoloEnabled : circleTremoloEnabled;
+  const useTremoloRate = soundType === 'wall' ? wallTremoloRate : circleTremoloRate;
+  const useTremoloDepth = soundType === 'wall' ? wallTremoloDepth : circleTremoloDepth;
+  const useTremoloShape = soundType === 'wall' ? wallTremoloShape : circleTremoloShape;
+  const useTremoloMix = soundType === 'wall' ? wallTremoloMix : circleTremoloMix;
+
+  // Create a single signal path that we'll modify based on enabled effects
+  let currentOutput = gainNode;
+  
+  // Apply tremolo if enabled
+  if (useTremoloEnabled) {
+    // Create an output node for tremolo
+    const tremoloOutputNode = audioContext.createGain();
+    nodes.add(tremoloOutputNode);
+    activeNodes.add(tremoloOutputNode);
+    
+    // Create and connect the tremolo network
+    const tremoloNetwork = createTremoloNetwork(
+      audioContext,
+      currentOutput,
+      tremoloOutputNode,
+      useTremoloRate,
+      useTremoloDepth,
+      useTremoloShape,
+      useTremoloMix,
+      nodes
+    );
+    
+    // Update current output
+    currentOutput = tremoloOutputNode;
+  }
+  
+  // Apply distortion if enabled
+  if (useDistortionEnabled) {
+    // Create an output node for distortion
+    const distortionOutputNode = audioContext.createGain();
+    nodes.add(distortionOutputNode);
+    activeNodes.add(distortionOutputNode);
+    
+    // Create and connect the distortion network
+    const distortionNetwork = createDistortionNetwork(
+      audioContext,
+      currentOutput,
+      distortionOutputNode,
+      useDistortionAmount,
+      useDistortionOversample,
+      useDistortionMix,
+      nodes
+    );
+    
+    // Update current output
+    currentOutput = distortionOutputNode;
+  }
+  
+  // Apply reverb if enabled
+  if (useReverbEnabled) {
+    // Create and connect the reverb network
+    const reverbNetwork = createReverbNetwork(
+      audioContext,
+      currentOutput,
+      mainOutputNode,
+      useReverbRoomSize,
+      useReverbDamping,
+      useReverbMix,
+      nodes
+    );
+    
+    // Update current output
+    currentOutput = mainOutputNode;
+  } else {
+    // If no reverb, connect to main output
+    currentOutput.connect(mainOutputNode);
+  }
+  
+  // Apply delay if enabled
+  if (useDelayEnabled) {
+    // Dry delay path
+    mainOutputNode.connect(delayDryGainNode);
+    delayDryGainNode.connect(pannerNode);
+    
+    // Wet delay path
+    mainOutputNode.connect(delayNode);
+    delayNode.connect(delayWetGainNode);
+    delayWetGainNode.connect(pannerNode);
+    
+    // Delay feedback loop
+    delayNode.connect(feedbackNode);
+    feedbackNode.connect(delayNode);
+  } else {
+    // No delay, connect directly to panner
+    mainOutputNode.connect(pannerNode);
+  }
+  
+  // Final output - connect to global processing chain instead of directly to destination
+  pannerNode.connect(globalCompressor);
+
+  // Calculate maximum effect tail time for proper cleanup
+  const reverbTailTime = useReverbEnabled ? 2.0 : 0; // 2 seconds for reverb tail
+  const delayTailTime = useDelayEnabled ? useDelayTime * 4 : 0;
+  const effectTailTime = Math.max(reverbTailTime, delayTailTime);
+  
+  // Set up cleanup
+  const stopTime = audioContext.currentTime + duration + effectTailTime;
+  
+  // Start all oscillators
+  oscillators.forEach(osc => {
+    osc.start(audioContext.currentTime);
+    osc.stop(stopTime);
+  });
+  
+  // Set up cleanup on the last oscillator
+  if (oscillators.length > 0) {
+    oscillators[oscillators.length - 1].onended = () => {
+      setTimeout(() => cleanupAudioNodes(nodes), effectTailTime * 1000);
+    };
+  }
+}
+
+// Play a single note for circle collisions (simplified from multi-tone)
+export const playCollisionBeep = (pan = 0) => {
+  // Get a random note from either high or higher circle groups
+  const group = Math.random() < 0.5 ? 'CIRCLE_HIGH' : 'CIRCLE_HIGHER';
+  const note = getRandomNote(group);
+  
+  // Play a single note, just like wall collisions but with circle parameters
+  createBeep(note, circleSoundDuration, circleSoundVolume, pan, 'circle');
 }
 
 // Get a random note for wall collisions
@@ -1010,9 +1255,28 @@ export const setVolume = (volume) => {
 
 export const getVolume = () => circleSoundVolume // Return circle value for consistency
 
-// Cleanup function
+// Global master volume control
+export const setGlobalVolume = (volume) => {
+  if (globalMaster) {
+    const clampedVolume = Math.max(0, Math.min(1.0, volume));
+    globalMaster.gain.setValueAtTime(clampedVolume, audioContext.currentTime);
+  }
+};
+
+export const getGlobalVolume = () => {
+  return globalMaster ? globalMaster.gain.value : 1.0;
+};
+
+// Cleanup all audio nodes but keep the audio context
+export const cleanupNodes = () => {
+  cleanupAudioNodes(activeNodes);
+};
+
+// Full cleanup including audio context
 export const cleanup = () => {
   if (audioContext) {
-    cleanupAudioNodes(activeNodes)
+    cleanupAudioNodes(activeNodes);
+    // We don't close the audio context as it can cause issues
+    // Just clean up the nodes
   }
-}
+};
