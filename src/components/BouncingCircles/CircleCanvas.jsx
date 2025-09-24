@@ -279,7 +279,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
    * @returns {number} Random size between 20px and 60px
    */
   const generateRandomSize = useCallback(() => {
-    return 20 + Math.random() * 40
+    return 30 + Math.random() * 60
   }, [])
 
   /**
