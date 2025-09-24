@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react'
 import gsap from 'gsap'
 import { useAnimationState } from '../../hooks/useAnimationState'
 import { useCollisions } from '../../hooks/useCollisions'
@@ -54,6 +54,60 @@ const calculateSquishAmounts = (velocity) => {
 }
 
 /**
+ * Convert HSL color to RGBA with alpha - memoized to avoid DOM operations
+ * @param {string} hslColor - HSL color string
+ * @returns {string} RGBA color string with 0.25 alpha
+ */
+const colorCache = new Map()
+const convertHSLToRGBA = (hslColor) => {
+  if (colorCache.has(hslColor)) {
+    return colorCache.get(hslColor)
+  }
+
+  // Create temporary element for color conversion
+  const div = document.createElement('div')
+  div.style.color = hslColor
+  document.body.appendChild(div)
+  const rgbColor = window.getComputedStyle(div).color
+  document.body.removeChild(div)
+
+  // Convert to rgba
+  const rgbaColor = rgbColor.replace('rgb', 'rgba').replace(')', ', 0.25)')
+
+  // Cache the result
+  colorCache.set(hslColor, rgbaColor)
+
+  return rgbaColor
+}
+
+/**
+ * Memoized Circle component to prevent unnecessary re-renders
+ */
+const Circle = React.memo(({ id, state, onRef }) => {
+  const backgroundColor = convertHSLToRGBA(state.color)
+
+  return (
+    <div
+      key={id}
+      ref={onRef}
+      style={{
+        position: 'absolute',
+        width: `${state.radius * 2}px`,
+        height: `${state.radius * 2}px`,
+        borderRadius: '50%',
+        color: state.color,
+        border: `2px solid ${state.color}`,
+        backgroundColor,
+        boxShadow: '0 0 0px 0px',
+        animationFillMode: 'forwards',
+        willChange: 'transform',
+        pointerEvents: 'none'
+      }}
+    />
+  )
+})
+
+/**
  * Component for rendering and animating circles
  * 
  * @param {Object} props - Component props
@@ -64,6 +118,9 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   const containerRef = useRef(null)
   const circleRefs = useRef(new Map())
   const squishAnimations = useRef(new Map())
+
+  // React state for rendering circles (separate from physics state)
+  const [renderCircles, setRenderCircles] = useState(new Map())
   
   // Custom hooks
   const {
@@ -212,16 +269,59 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
    * Generate a random size for a new circle
    * @returns {number} Random size between 20px and 60px
    */
-  const generateRandomSize = () => {
+  const generateRandomSize = useCallback(() => {
     return 20 + Math.random() * 40
-  }
+  }, [])
+
+  /**
+   * Add a circle to the render state (separate from physics)
+   */
+  const addCircleToRender = useCallback((id, state) => {
+    setRenderCircles(prev => new Map(prev).set(id, state))
+  }, [])
+
+  /**
+   * Remove a circle from the render state
+   */
+  const removeCircleFromRender = useCallback((id) => {
+    setRenderCircles(prev => {
+      const newMap = new Map(prev)
+      newMap.delete(id)
+      return newMap
+    })
+  }, [])
+
+  /**
+   * Memoized callback for handling circle refs
+   */
+  const handleCircleRef = useCallback((id) => (el) => {
+    if (el) {
+      circleRefs.current.set(id, el)
+    } else {
+      circleRefs.current.delete(id)
+    }
+  }, [])
+
+  /**
+   * Memoized array of circle components
+   */
+  const circleComponents = useMemo(() => {
+    return Array.from(renderCircles.entries()).map(([id, state]) => (
+      <Circle
+        key={id}
+        id={id}
+        state={state}
+        onRef={handleCircleRef(id)}
+      />
+    ))
+  }, [renderCircles, handleCircleRef])
   
   /**
    * Play squish animation for wall collision
    * @param {HTMLElement} circleEl - Circle element
    * @param {string} direction - 'horizontal' or 'vertical'
    */
-  const playSquishAnimation = (circleEl, direction = 'horizontal', velocity = 0) => {
+  const playSquishAnimation = useCallback((circleEl, direction = 'horizontal', velocity = 0) => {
     // Kill any existing animation for this circle
     const existingTween = squishAnimations.current.get(circleEl)
     if (existingTween && existingTween.timeline) {
@@ -294,7 +394,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       startTime: now,
       expectedEndTime: now + expectedDuration
     })
-  }
+  }, [])
   
   /**
    * Play squish animation for circle collision
@@ -302,7 +402,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
    * @param {HTMLElement} otherCircleEl - Second circle element
    * @param {number} angle - Collision angle in radians
    */
-  const playCircleCollisionSquish = (circleEl, otherCircleEl, angle, state1, state2) => {
+  const playCircleCollisionSquish = useCallback((circleEl, otherCircleEl, angle, state1, state2) => {
     // Calculate relative velocity magnitude for squish amount
     const dvx = state2.vx - state1.vx
     const dvy = state2.vy - state1.vy
@@ -397,13 +497,13 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       startTime: now,
       expectedEndTime: now + expectedDuration
     })
-  }
+  }, [])
   
   /**
    * Handle mouse down event to create a new circle
    * @param {React.MouseEvent} e - Mouse event
    */
-  const handleMouseDown = (e) => {
+  const handleMouseDown = useCallback((e) => {
     if (!containerRef.current) return
     
     const bounds = containerRef.current.getBoundingClientRect()
@@ -428,6 +528,9 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     
     // Initialize circle in physics system
     initCircle(id, initialState)
+
+    // Add circle to render state for React rendering
+    addCircleToRender(id, initialState)
     
     // Wait for the next render to get the circle element
     requestAnimationFrame(() => {
@@ -519,46 +622,59 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       // Add ticker function
       addTicker(id, tickerFunction)
     })
-  }
+  }, [initialSpeed, generateRandomSize, generateRandomColor, addToColorPalette, initCircle, getCircleState, updateCircleState, handleWallCollision, addTicker, playSquishAnimation, addCircleToRender])
   
   // Track last collision time for each pair of circles using a ref to persist across re-renders
   const lastCollisionTimes = useRef(new Map());
   // Cooldown period in milliseconds
   const COLLISION_COOLDOWN = 300;
   
-  // Handle circle collisions in animation frame
+  // Handle circle collisions in animation frame with idle detection
   useEffect(() => {
-    
+    let animationId = null
+
     const handleCollisions = () => {
-      if (!containerRef.current) return
-      
+      if (!containerRef.current) {
+        animationId = requestAnimationFrame(handleCollisions)
+        return
+      }
+
+      // Check if there are any circles - if not, pause collision detection
+      if (circleStates.current.size === 0) {
+        // Schedule next check in 100ms instead of next frame to save CPU
+        setTimeout(() => {
+          animationId = requestAnimationFrame(handleCollisions)
+        }, 100)
+        return
+      }
+
       const bounds = containerRef.current.getBoundingClientRect()
       const collisionEvents = handleCircleCollisions()
       const currentTime = Date.now();
-      
+
       // Process collision events
       collisionEvents.forEach(event => {
         const { id1, id2, collisionPoint, angle } = event
-        
+
         // Create a unique key for this pair of circles
         const pairKey = [id1, id2].sort().join('-');
-        
+
         // Get circle elements
         const circleEl1 = circleRefs.current.get(id1)
         const circleEl2 = circleRefs.current.get(id2)
-        
+
         if (circleEl1 && circleEl2) {
           // Check if enough time has passed since the last collision
           const lastCollisionTime = lastCollisionTimes.current.get(pairKey) || 0;
           const timeSinceLastCollision = currentTime - lastCollisionTime;
-          
+
           // Get the states of both circles
           const state1 = circleStates.current.get(id1)
           const state2 = circleStates.current.get(id2)
-          
+
           // Always play the squish animation with velocity
           playCircleCollisionSquish(circleEl1, circleEl2, angle, state1, state2);
-          
+
           // Only play the sound if enough time has passed
           if (timeSinceLastCollision > COLLISION_COOLDOWN) {
             const pan = calculatePan(collisionPoint.x, bounds.width);
@@ -567,22 +683,24 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
             const dvy = state2.vy - state1.vy;
             const relativeVelocity = Math.sqrt(dvx * dvx + dvy * dvy);
             playCollisionBeep(pan, relativeVelocity);
-            
+
             // Update the last collision time
             lastCollisionTimes.current.set(pairKey, currentTime);
           }
         }
       })
-      
-      // Request next frame
-      requestAnimationFrame(handleCollisions)
+
+      // Request next frame for active collision detection
+      animationId = requestAnimationFrame(handleCollisions)
     }
-    
+
     // Start collision detection loop
-    const animationId = requestAnimationFrame(handleCollisions)
-    
+    animationId = requestAnimationFrame(handleCollisions)
+
     return () => {
-      cancelAnimationFrame(animationId)
+      if (animationId) {
+        cancelAnimationFrame(animationId)
+      }
     }
   }, [handleCircleCollisions, playCircleCollisionSquish, calculatePan, playCollisionBeep])
   
@@ -618,37 +736,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           `}
         </style>
         
-        {Array.from(circleStates.current.entries()).map(([id, state]) => {
-          // Convert HSL to RGB for rgba background
-          const div = document.createElement('div')
-          div.style.color = state.color
-          document.body.appendChild(div)
-          const rgbColor = window.getComputedStyle(div).color
-          document.body.removeChild(div)
-          
-          return (
-            <div
-              key={id}
-              ref={el => {
-                if (el) circleRefs.current.set(id, el)
-                else circleRefs.current.delete(id)
-              }}
-              style={{
-                position: 'absolute',
-                width: `${state.radius * 2}px`,
-                height: `${state.radius * 2}px`,
-                borderRadius: '50%',
-                color: state.color,
-                border: `2px solid ${state.color}`,
-                backgroundColor: rgbColor.replace('rgb', 'rgba').replace(')', ', 0.25)'),
-                boxShadow: '0 0 0px 0px',
-                animationFillMode: 'forwards',
-                willChange: 'transform',
-                pointerEvents: 'none'
-              }}
-            />
-          )
-        })}
+        {circleComponents}
       </div>
     </>
   )
