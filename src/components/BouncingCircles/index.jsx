@@ -16,6 +16,8 @@ export default function BouncingCircles() {
   const [ballSpeed, setBallSpeed] = useState(15) // Default speed matches the original INITIAL_SPEED
   const buttonRef = useRef(null)
   const buttonTimeline = useRef(null)
+  const controlsRef = useRef(null)
+  const controlsTimeline = useRef(null)
   
   // Handle background color changes from CircleCanvas
   const handleBackgroundChange = (colors) => {
@@ -56,12 +58,72 @@ export default function BouncingCircles() {
     `.trim().replace(/\s+/g, ' ')
   }, [])
   
+  // Animate controls menu in/out
+  const toggleControls = useCallback(() => {
+    const newShowControls = !showControls
+
+    if (newShowControls) {
+      // Show controls - animate in
+      setShowControls(true)
+
+      // Wait for next frame to ensure DOM is rendered
+      requestAnimationFrame(() => {
+        if (controlsRef.current) {
+          // Kill any existing animation
+          if (controlsTimeline.current) {
+            controlsTimeline.current.kill()
+          }
+
+          // Set initial state
+          gsap.set(controlsRef.current, {
+            opacity: 0,
+            rotation: -360,
+            scale: 0.1
+          })
+
+          // Animate in
+          controlsTimeline.current = gsap.to(controlsRef.current, {
+            opacity: 1,
+            rotation: 0,
+            scale: 1,
+            duration: 1.0,
+            ease: "elastic.out(1, 0.6)"
+          })
+        }
+      })
+    } else {
+      // Hide controls - animate out
+      if (controlsRef.current) {
+        // Kill any existing animation
+        if (controlsTimeline.current) {
+          controlsTimeline.current.kill()
+        }
+
+        // Animate out
+        controlsTimeline.current = gsap.to(controlsRef.current, {
+          opacity: 0,
+          duration: .8,
+          ease: "power2.in",
+          onComplete: () => {
+            setShowControls(false)
+          }
+        })
+      } else {
+        setShowControls(false)
+      }
+    }
+  }, [showControls])
+
   // Cleanup effect
   useEffect(() => {
     return () => {
       if (buttonTimeline.current) {
         buttonTimeline.current.kill()
         buttonTimeline.current = null
+      }
+      if (controlsTimeline.current) {
+        controlsTimeline.current.kill()
+        controlsTimeline.current = null
       }
     }
   }, [])
@@ -129,17 +191,17 @@ export default function BouncingCircles() {
         right: '16px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        gap: '6px',
         zIndex: 10000
       }}>
         {/* Scale Selector */}
         <ScaleSelector />
-        
+
         {/* Show Controls Button */}
         <div style={{ marginBottom: '6px' }}>
           <Button
             ref={buttonRef}
-            onClick={() => setShowControls(!showControls)}
+            onClick={toggleControls}
             style={{
               backgroundColor: 'transparent',
               color: '#6b21a8',
@@ -163,12 +225,16 @@ export default function BouncingCircles() {
           </Button>
         </div>
 
-        {/* Audio Controls */}
-        <AudioControls 
-          visible={showControls} 
-          speed={ballSpeed} 
-          setSpeed={setBallSpeed} 
-        />
+        {/* Audio Controls with animation wrapper */}
+        {showControls && (
+          <div ref={controlsRef}>
+            <AudioControls
+              visible={true}
+              speed={ballSpeed}
+              setSpeed={setBallSpeed}
+            />
+          </div>
+        )}
       </div>
       
       {/* Circle Canvas */}
