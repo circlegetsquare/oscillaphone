@@ -82,6 +82,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     handleWallCollision,
     handleCircleCollisions,
     updatePositions,
+    updateSpatialGrid,
     circleStates
   } = useCollisions()
   
@@ -193,7 +194,20 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       squishAnimations.current.clear();
     };
   }, []);
-  
+
+  // Update spatial grid dimensions on window resize
+  useEffect(() => {
+    const handleResize = () => {
+      updateSpatialGrid(window.innerWidth, window.innerHeight)
+    }
+
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [updateSpatialGrid])
+
   /**
    * Generate a random size for a new circle
    * @returns {number} Random size between 20px and 60px
