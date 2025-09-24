@@ -324,7 +324,7 @@ const createDistortionCurve = (amount = 20) => {
 };
 
 // Create a distortion network
-const createDistortionNetwork = (audioContext, input, output, amount, oversample, mix, nodes) => {
+const createDistortionNetwork = (audioContext, input, output, amount, mix, nodes) => {
   // Create distortion components
   const distortionInput = audioContext.createGain();
   const distortionOutput = audioContext.createGain();
@@ -340,7 +340,7 @@ const createDistortionNetwork = (audioContext, input, output, amount, oversample
   
   // Configure WaveShaper
   waveShaperNode.curve = createDistortionCurve(amount * 100); // Scale amount for better control (0-100)
-  waveShaperNode.oversample = oversample;
+  waveShaperNode.oversample = 'none'; // Hardcoded to 'none' for simplicity
   
   // Set up dry/wet mix
   dryMix.gain.setValueAtTime(1 - mix, audioContext.currentTime);
@@ -668,7 +668,6 @@ const createOriginalBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, s
   // Set up distortion effect based on sound type
   const useDistortionEnabled = soundType === 'wall' ? wallDistortionEnabled : circleDistortionEnabled;
   const useDistortionAmount = soundType === 'wall' ? wallDistortionAmount : circleDistortionAmount;
-  const useDistortionOversample = soundType === 'wall' ? wallDistortionOversample : circleDistortionOversample;
   const useDistortionMix = soundType === 'wall' ? wallDistortionMix : circleDistortionMix;
 
   // Set up tremolo effect based on sound type
@@ -721,7 +720,6 @@ const createOriginalBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, s
       currentOutput,
       distortionOutputNode,
       useDistortionAmount,
-      useDistortionOversample,
       useDistortionMix,
       nodes
     );
@@ -933,11 +931,6 @@ export const setWallDistortionAmount = (amount) => {
   wallDistortionAmount = Math.max(0, Math.min(1.0, amount));
 };
 
-export const setWallDistortionOversample = (oversample) => {
-  if (['none', '2x', '4x'].includes(oversample)) {
-    wallDistortionOversample = oversample;
-  }
-};
 
 export const setWallDistortionMix = (mix) => {
   wallDistortionMix = Math.max(0, Math.min(1.0, mix));
@@ -952,11 +945,6 @@ export const setCircleDistortionAmount = (amount) => {
   circleDistortionAmount = Math.max(0, Math.min(1.0, amount));
 };
 
-export const setCircleDistortionOversample = (oversample) => {
-  if (['none', '2x', '4x'].includes(oversample)) {
-    circleDistortionOversample = oversample;
-  }
-};
 
 export const setCircleDistortionMix = (mix) => {
   circleDistortionMix = Math.max(0, Math.min(1.0, mix));
