@@ -1,5 +1,6 @@
 import { useRef, useCallback } from 'react'
 import { checkCircleCollision, resolveCollision } from '../utils/physics'
+import { SpatialGrid } from '../utils/spatialGrid'
 
 /**
  * Custom hook for managing circle collisions
@@ -10,6 +11,7 @@ export function useCollisions() {
   const circleStates = useRef(new Map())
   const collisionStates = useRef(new Map())
   const wallCollisionStates = useRef(new Map())
+  const spatialGrid = useRef(new SpatialGrid(window.innerWidth, window.innerHeight, 100))
   
   /**
    * Initialize a new circle with physics state
@@ -117,28 +119,45 @@ export function useCollisions() {
   }, [checkWallCollision])
   
   /**
-   * Check and handle collisions between all circles
+   * Check and handle collisions between all circles (optimized with spatial partitioning)
    * @returns {Array} Array of collision events
    */
   const handleCircleCollisions = useCallback(() => {
     const collisionEvents = []
     const processedPairs = new Set()
-    
+
     // Clear old collision states
     collisionStates.current.forEach((collisions, id) => {
       collisions.clear()
     })
-    
-    // Check each pair of circles for collisions
+
+    // Clear and rebuild spatial grid
+    spatialGrid.current.clear()
+
+    // Insert all circles into spatial grid
+    circleStates.current.forEach((state, id) => {
+      spatialGrid.current.insert(id, state.x, state.y, state.radius)
+    })
+
+    // Check collisions using spatial partitioning (O(n) instead of O(n²))
     circleStates.current.forEach((state1, id1) => {
-      circleStates.current.forEach((state2, id2) => {
+      // Get potential collision candidates from spatial grid
+      const candidates = spatialGrid.current.getPotentialCollisions(
+        state1.x, state1.y, state1.radius
+      )
+
+      // Check only against nearby circles
+      candidates.forEach((id2) => {
         if (id1 === id2) return // Skip self
-        
+
         // Avoid processing the same pair twice
         const pairKey = [id1, id2].sort().join('-')
         if (processedPairs.has(pairKey)) return
         processedPairs.add(pairKey)
-        
+
+        const state2 = circleStates.current.get(id2)
+        if (!state2) return
+
         // Check for collision
         if (checkCircleCollision(
           state1.x, state1.y, state1.radius,
@@ -147,18 +166,18 @@ export function useCollisions() {
           // Create copies of states to avoid direct mutation
           const updatedState1 = { ...state1 }
           const updatedState2 = { ...state2 }
-          
+
           // Resolve collision physics
           resolveCollision(updatedState1, updatedState2)
-          
+
           // Update collision states
           collisionStates.current.get(id1)?.add(id2)
           collisionStates.current.get(id2)?.add(id1)
-          
+
           // Update circle states
           circleStates.current.set(id1, updatedState1)
           circleStates.current.set(id2, updatedState2)
-          
+
           // Record collision event
           collisionEvents.push({
             id1,
@@ -174,7 +193,7 @@ export function useCollisions() {
         }
       })
     })
-    
+
     return collisionEvents
   }, [])
   
@@ -204,13 +223,30 @@ export function useCollisions() {
   const updatePositions = useCallback((deltaTime = 1/60) => {
     circleStates.current.forEach((state, id) => {
       const updatedState = { ...state }
-      
+
       // Update position based on velocity
       updatedState.x += updatedState.vx * deltaTime
       updatedState.y += updatedState.vy * deltaTime
-      
+
       circleStates.current.set(id, updatedState)
     })
+  }, [])
+
+  /**
+   * Update spatial grid dimensions (e.g., on window resize)
+   * @param {number} width - New container width
+   * @param {number} height - New container height
+   */
+  const updateSpatialGrid = useCallback((width, height) => {
+    spatialGrid.current.updateDimensions(width, height)
+  }, [])
+
+  /**
+   * Get spatial grid debug information for performance monitoring
+   * @returns {Object} Debug information about grid usage
+   */
+  const getSpatialGridDebug = useCallback(() => {
+    return spatialGrid.current.getDebugInfo()
   }, [])
   
   return {
@@ -224,6 +260,8 @@ export function useCollisions() {
     isCollidingWith,
     getCollidingCircles,
     updatePositions,
+    updateSpatialGrid,
+    getSpatialGridDebug,
     circleStates,
     collisionStates,
     wallCollisionStates

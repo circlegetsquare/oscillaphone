@@ -167,32 +167,6 @@ export default function EffectControls({
                 formatValue={(val) => `${(val * 100).toFixed(0)}%`}
                 style={{ marginBottom: '8px' }}
               />
-              <div style={{ marginBottom: '8px' }}>
-                <label style={{
-                  color: 'white',
-                  fontSize: '14px',
-                  fontFamily: 'system-ui, sans-serif',
-                  marginBottom: '8px',
-                  display: 'block'
-                }}>
-                  Oversample: {distortion.oversample.value}
-                </label>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: '8px'
-                }}>
-                  {['none', '2x', '4x'].map(option => (
-                    <Button
-                      key={option}
-                      onClick={() => distortion.oversample.onChange(option)}
-                      isActive={distortion.oversample.value === option}
-                    >
-                      {option}
-                    </Button>
-                  ))}
-                </div>
-              </div>
               <Slider
                 label="Mix"
                 value={distortion.mix.value}
