@@ -455,8 +455,8 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
         onStart: () => {
           // Add glow effect proportional to circle size
           const circleRadius = parseFloat(el.style.width) / 2 || 30 // fallback to 30px
-          const glowSpread = Math.max(8, circleRadius * 0.8) // minimum 8px, or 40% of radius
-          const glowBlur = Math.max(2, circleRadius * 0.2) // minimum 2px, or 10% of radius
+          const glowSpread = Math.max(8, circleRadius * 0.8) // minimum 8px, or 80% of radius
+          const glowBlur = Math.max(2, circleRadius * 0.2) // minimum 2px, or 20% of radius
 
           el.style.animation = 'none'
           void el.offsetWidth

@@ -23,7 +23,11 @@ export default function AudioControls({ visible, speed, setSpeed }) {
   }
 
   return (
-    <>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '6px'
+    }}>
       <GlobalControls speed={speed} setSpeed={setSpeed} />
 
       {/* Reset Controls Button */}
@@ -31,7 +35,7 @@ export default function AudioControls({ visible, speed, setSpeed }) {
         padding: '0px',
         backgroundColor: 'rgba(0, 0, 0, 0.0)',
         borderRadius: '4px',
-        marginBottom: '0px'
+        marginBottom: '4px'
       }}>
         <Button
           onClick={handleResetControls}
@@ -64,6 +68,6 @@ export default function AudioControls({ visible, speed, setSpeed }) {
 
       <CircleControls />
       <WallControls />
-    </>
+    </div>
   )
 }
