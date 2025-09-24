@@ -62,8 +62,8 @@ export default function AudioControls({ visible, speed, setSpeed }) {
         </Button>
       </div>
 
-      <WallControls />
       <CircleControls />
+      <WallControls />
     </>
   )
 }
