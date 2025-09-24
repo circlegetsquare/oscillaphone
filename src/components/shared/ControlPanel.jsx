@@ -4,7 +4,7 @@ const panelStyles = {
   padding: '12px',
   backgroundColor: 'rgba(0, 0, 0, 0.3)',
   borderRadius: '4px',
-  marginBottom: '20px'
+  marginBottom: '6px'
 }
 
 const headerStyles = {

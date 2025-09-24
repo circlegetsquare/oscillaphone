@@ -181,7 +181,10 @@ const ActionTypes = {
   SET_CIRCLE_TREMOLO_ENABLED: 'SET_CIRCLE_TREMOLO_ENABLED',
   SET_CIRCLE_TREMOLO_RATE: 'SET_CIRCLE_TREMOLO_RATE',
   SET_CIRCLE_TREMOLO_DEPTH: 'SET_CIRCLE_TREMOLO_DEPTH',
-  SET_CIRCLE_TREMOLO_MIX: 'SET_CIRCLE_TREMOLO_MIX'
+  SET_CIRCLE_TREMOLO_MIX: 'SET_CIRCLE_TREMOLO_MIX',
+
+  // Reset actions
+  RESET_ALL_CONTROLS: 'RESET_ALL_CONTROLS'
 }
 
 // Reducer function
@@ -656,7 +659,12 @@ function audioReducer(state, action) {
           }
         }
       }
-      
+
+    case ActionTypes.RESET_ALL_CONTROLS:
+      return {
+        ...initialState
+      }
+
     default:
       return state
   }
@@ -914,7 +922,12 @@ export function AudioProvider({ children }) {
   const setCircleTremoloMixValue = (mix) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_TREMOLO_MIX, payload: mix })
   }
-  
+
+  // Reset all controls to defaults
+  const resetAllControls = () => {
+    dispatch({ type: ActionTypes.RESET_ALL_CONTROLS })
+  }
+
   // Context value
   const value = {
     // State
@@ -981,7 +994,10 @@ export function AudioProvider({ children }) {
     setCircleTremoloEnabled: setCircleTremoloEnabledValue,
     setCircleTremoloRate: setCircleTremoloRateValue,
     setCircleTremoloDepth: setCircleTremoloDepthValue,
-    setCircleTremoloMix: setCircleTremoloMixValue
+    setCircleTremoloMix: setCircleTremoloMixValue,
+
+    // Reset function
+    resetAllControls
   }
   
   return (
