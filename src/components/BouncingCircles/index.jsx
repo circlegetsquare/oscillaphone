@@ -86,8 +86,8 @@ export default function BouncingCircles() {
             opacity: 1,
             rotation: 0,
             scale: 1,
-            duration: 1.0,
-            ease: "elastic.out(1, 0.6)"
+            duration: 1.25,
+            ease: "elastic.inOut(1, 0.4)"
           })
         }
       })
@@ -102,7 +102,7 @@ export default function BouncingCircles() {
         // Animate out
         controlsTimeline.current = gsap.to(controlsRef.current, {
           opacity: 0,
-          duration: .8,
+          duration: .7,
           ease: "power2.in",
           onComplete: () => {
             setShowControls(false)

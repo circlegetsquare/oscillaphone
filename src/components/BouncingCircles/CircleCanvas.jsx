@@ -118,6 +118,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   const containerRef = useRef(null)
   const circleRefs = useRef(new Map())
   const squishAnimations = useRef(new Map())
+  const glowAnimations = useRef(new Map())
 
   // React state for rendering circles (separate from physics state)
   const [renderCircles, setRenderCircles] = useState(new Map())
@@ -249,6 +250,14 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
         }
       });
       squishAnimations.current.clear();
+
+      // Kill all glow animations
+      glowAnimations.current.forEach((tween) => {
+        if (tween) {
+          tween.kill();
+        }
+      });
+      glowAnimations.current.clear();
     };
   }, []);
 
@@ -453,17 +462,34 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
         duration: squishDuration,
         ease: "elastic.out(1, 0.3)",
         onStart: () => {
-          // Add glow effect proportional to circle size
+          // Add glow effect proportional to circle size using GSAP
           const circleRadius = parseFloat(el.style.width) / 2 || 30 // fallback to 30px
           const glowSpread = Math.max(8, circleRadius * 0.8) // minimum 8px, or 80% of radius
           const glowBlur = Math.max(2, circleRadius * 0.2) // minimum 2px, or 20% of radius
 
-          el.style.animation = 'none'
-          void el.offsetWidth
-          el.style.setProperty('--glow-spread', `${glowSpread}px`)
-          el.style.setProperty('--glow-blur', `${glowBlur}px`)
-          el.style.boxShadow = `0 0 0 0 ${color}`
-          el.style.animation = 'collisionGlow .8s ease-out forwards'
+          // Kill any existing glow animation for this element
+          const existingGlow = glowAnimations.current.get(el)
+          if (existingGlow) {
+            existingGlow.kill()
+          }
+
+          // Set initial glow state (restart the glow)
+          el.style.boxShadow = `0 0 ${glowSpread}px ${glowBlur}px inset ${color}`
+
+          // Animate the glow fade with GSAP for better easing control
+          const glowTween = gsap.to(el, {
+            boxShadow: `0 0 0px 0px inset ${color}`,
+            duration: 1.8,
+            ease: "power2.out",
+            delay: 0.3, // Small delay to let the glow be visible first
+            onComplete: () => {
+              // Remove from tracking when complete
+              glowAnimations.current.delete(el)
+            }
+          })
+
+          // Track this glow animation
+          glowAnimations.current.set(el, glowTween)
         }
       }).to(el, {
         scaleX: 1,
@@ -586,6 +612,36 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           } else if (hitTopBottom) {
             playSquishAnimation(circleEl, 'vertical', Math.abs(updatedState.vy))
           }
+
+          // Add glow effect for wall collisions
+          const circleRadius = updatedState.radius
+          const glowSpread = Math.max(8, circleRadius * 0.8)
+          const glowBlur = Math.max(2, circleRadius * 0.2)
+          const color = updatedState.color
+
+          // Kill any existing glow animation for this element
+          const existingGlow = glowAnimations.current.get(circleEl)
+          if (existingGlow) {
+            existingGlow.kill()
+          }
+
+          // Set initial glow state (restart the glow)
+          circleEl.style.boxShadow = `0 0 ${glowSpread}px ${glowBlur}px inset ${color}`
+
+          // Animate the glow fade with GSAP for better easing control
+          const glowTween = gsap.to(circleEl, {
+            boxShadow: `0 0 0px 0px inset ${color}`,
+            duration: 1.8,
+            ease: "power2.out",
+            delay: 0.3,
+            onComplete: () => {
+              // Remove from tracking when complete
+              glowAnimations.current.delete(circleEl)
+            }
+          })
+
+          // Track this glow animation
+          glowAnimations.current.set(circleEl, glowTween)
           
           // Check if enough time has passed since the last collision
           let shouldPlaySound = false;
