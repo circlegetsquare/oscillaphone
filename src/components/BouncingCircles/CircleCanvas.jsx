@@ -453,9 +453,15 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
         duration: squishDuration,
         ease: "elastic.out(1, 0.3)",
         onStart: () => {
-          // Add glow effect
+          // Add glow effect proportional to circle size
+          const circleRadius = parseFloat(el.style.width) / 2 || 30 // fallback to 30px
+          const glowSpread = Math.max(8, circleRadius * 0.8) // minimum 8px, or 40% of radius
+          const glowBlur = Math.max(2, circleRadius * 0.2) // minimum 2px, or 10% of radius
+
           el.style.animation = 'none'
           void el.offsetWidth
+          el.style.setProperty('--glow-spread', `${glowSpread}px`)
+          el.style.setProperty('--glow-blur', `${glowBlur}px`)
           el.style.boxShadow = `0 0 0 0 ${color}`
           el.style.animation = 'collisionGlow .8s ease-out forwards'
         }
@@ -727,7 +733,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           {`
             @keyframes collisionGlow {
               0% {
-                box-shadow: 0 0 12px 2px inset currentColor;
+                box-shadow: 0 0 var(--glow-spread, 12px) var(--glow-blur, 2px) inset currentColor;
               }
               100% {
                 box-shadow: 0 0 0 0 currentColor;
