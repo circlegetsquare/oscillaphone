@@ -486,7 +486,8 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           // Only play sound if cooldown has passed
           if (shouldPlaySound) {
             const pan = calculatePan(updatedState.x, bounds.width);
-            playWallCollisionBeep(pan);
+            const velocity = hitLeftRight ? Math.abs(updatedState.vx) : Math.abs(updatedState.vy);
+            playWallCollisionBeep(pan, velocity);
           }
         }
         
@@ -547,7 +548,11 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           // Only play the sound if enough time has passed
           if (timeSinceLastCollision > COLLISION_COOLDOWN) {
             const pan = calculatePan(collisionPoint.x, bounds.width);
-            playCollisionBeep(pan);
+            // Calculate relative velocity magnitude
+            const dvx = state2.vx - state1.vx;
+            const dvy = state2.vy - state1.vy;
+            const relativeVelocity = Math.sqrt(dvx * dvx + dvy * dvy);
+            playCollisionBeep(pan, relativeVelocity);
             
             // Update the last collision time
             lastCollisionTimes.current.set(pairKey, currentTime);

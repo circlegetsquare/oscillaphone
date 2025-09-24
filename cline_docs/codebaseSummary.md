@@ -39,12 +39,17 @@
 
 ### Shared Components
 - **Button**: Reusable button component with hover effects
+- **EffectControls**: Base component for audio effects
 - **Slider**: Reusable slider component for numeric inputs
 - **Checkbox**: Reusable checkbox component
 - **ControlPanel**: Container for grouping related controls
 
 ### Utilities
 - **sound.js**: Audio system manager
+  - Delay with feedback
+  - Custom reverb simulation
+  - Distortion with waveshaping
+  - Tremolo with LFO modulation
   - Web Audio API integration
   - Musical scale definitions
   - Sound generation and control
@@ -142,6 +147,9 @@ graph TD
 
 ## Recent Significant Changes
 - Refactored BouncingCircles component into modular architecture
+- Improved button hover animation with GSAP timelines and random colors
+- Fixed background animation persistence across component re-renders
+- Implemented audio effects (delay, reverb, distortion, tremolo)
 - Implemented custom hooks for better separation of concerns:
   - useAnimationState for GSAP animations
   - useCollisions for physics management

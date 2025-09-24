@@ -30,6 +30,10 @@
     - Distortion with waveshaping
     - Tremolo with LFO modulation
   - Volume optimization for multiple simultaneous sounds
+  - Delay with feedback
+  - Custom reverb simulation
+  - Distortion with waveshaping
+  - Tremolo with LFO modulation
   - Proper resource management and cleanup
 
 ### Build Tools
@@ -47,6 +51,7 @@
 - PostCSS and Autoprefixer integration
 
 ## Project Architecture
+- Animation performance optimization techniques
 
 ### Component Structure
 - Modular component design

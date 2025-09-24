@@ -9,7 +9,7 @@ export default function ScaleSelector() {
   const { currentScale, setCurrentScale, AVAILABLE_SCALES } = useAudio()
   
   return (
-    <div style={{ marginBottom: '20px' }}>
+    <div style={{ marginBottom: '6px' }}>
       <div style={{
         display: 'flex',
         gap: '8px',

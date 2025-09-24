@@ -136,7 +136,7 @@ export default function BouncingCircles() {
         <ScaleSelector />
         
         {/* Show Controls Button */}
-        <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '6px' }}>
           <Button
             ref={buttonRef}
             onClick={() => setShowControls(!showControls)}
