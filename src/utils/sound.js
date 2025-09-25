@@ -59,7 +59,7 @@ const initGlobalProcessing = () => {
     
     // Create limiter (compressor with high ratio and fast attack)
     globalLimiter = audioContext.createDynamicsCompressor();
-    globalLimiter.threshold.value = -6.0;      // Limit at -6dB
+    globalLimiter.threshold.value = -3.0;      // Stronger limiting at -3dB (was -6dB)
     globalLimiter.knee.value = 0.0;            // Hard knee for true limiting
     globalLimiter.ratio.value = 20.0;          // Very high ratio for limiting
     globalLimiter.attack.value = 0.001;        // Very fast attack
@@ -67,7 +67,7 @@ const initGlobalProcessing = () => {
     
     // Create master volume control
     globalMaster = audioContext.createGain();
-    globalMaster.gain.value = 1.0;             // Unity gain
+    globalMaster.gain.value = 0.7;             // Reduced from 1.0 to provide headroom
     
     // Connect the processing chain
     globalCompressor.connect(globalLimiter);
@@ -268,14 +268,14 @@ let circleReverbMix = 0.3;       // 30% wet signal
 
 // Distortion parameters for wall sounds
 let wallDistortionEnabled = false;
-let wallDistortionAmount = 0.5;    // Default distortion amount (0.0 to 1.0)
-let wallDistortionOversample = 'none'; // Options: 'none', '2x', '4x'
+let wallDistortionAmount = 0.3;    // Reduced default distortion amount (was 0.5)
+let wallDistortionOversample = '2x'; // Enabled oversampling for cleaner distortion
 let wallDistortionMix = 0.3;       // 30% wet signal
 
 // Distortion parameters for circle sounds
 let circleDistortionEnabled = false;
-let circleDistortionAmount = 0.5;  // Default distortion amount (0.0 to 1.0)
-let circleDistortionOversample = 'none';
+let circleDistortionAmount = 0.3;  // Reduced default distortion amount (was 0.5)
+let circleDistortionOversample = '2x'; // Enabled oversampling for cleaner distortion
 let circleDistortionMix = 0.3;     // 30% wet signal
 
 const getRandomNote = (group) => {
@@ -313,13 +313,15 @@ const createDistortionCurve = (amount = 20) => {
   // Use a smaller number of samples for better performance
   const n_samples = 256;
   const curve = new Float32Array(n_samples);
-  
+
   for (let i = 0; i < n_samples; ++i) {
     const x = i * 2 / n_samples - 1;
-    // Simpler distortion algorithm that creates a nice warm overdrive
-    curve[i] = (Math.PI + amount) * x / (Math.PI + amount * Math.abs(x));
+    // Improved distortion algorithm with proper clamping
+    let distorted = (Math.PI + amount) * x / (Math.PI + amount * Math.abs(x));
+    // Ensure output is properly clamped between -1 and 1
+    curve[i] = Math.max(-1, Math.min(1, distorted));
   }
-  
+
   return curve;
 };
 
@@ -328,19 +330,41 @@ const createDistortionNetwork = (audioContext, input, output, amount, mix, nodes
   // Create distortion components
   const distortionInput = audioContext.createGain();
   const distortionOutput = audioContext.createGain();
+  const inputAttenuator = audioContext.createGain(); // Pre-distortion attenuation
+  const dcBlocker = audioContext.createBiquadFilter(); // DC blocking filter
+  const distortionLimiter = audioContext.createDynamicsCompressor(); // Post-distortion limiting
+  const makeupGain = audioContext.createGain(); // Makeup gain after limiting
   const dryMix = audioContext.createGain();
   const wetMix = audioContext.createGain();
   const waveShaperNode = audioContext.createWaveShaper();
   
+  // Configure input attenuation to prevent overdriving (more aggressive)
+  inputAttenuator.gain.setValueAtTime(0.3, audioContext.currentTime); // Reduce input by 70% (was 50%)
+
+  // Configure DC blocking filter to remove any DC offset from distortion
+  dcBlocker.type = 'highpass';
+  dcBlocker.frequency.setValueAtTime(20, audioContext.currentTime); // Remove frequencies below 20Hz
+  dcBlocker.Q.setValueAtTime(0.7071, audioContext.currentTime); // Butterworth response
+
+  // Configure post-distortion limiter (more aggressive to prevent clipping)
+  distortionLimiter.threshold.value = -12.0;  // More aggressive limiting (was -6dB)
+  distortionLimiter.knee.value = 1.0;         // Harder knee for stronger limiting
+  distortionLimiter.ratio.value = 12.0;       // Higher ratio for more limiting
+  distortionLimiter.attack.value = 0.001;     // Fast attack
+  distortionLimiter.release.value = 0.03;     // Faster release
+
+  // Configure makeup gain to compensate for limiting (reduced to prevent clipping)
+  makeupGain.gain.setValueAtTime(1.0, audioContext.currentTime); // No makeup gain to prevent post-limiting clipping
+
   // Add nodes to tracking sets
-  [distortionInput, distortionOutput, dryMix, wetMix, waveShaperNode].forEach(node => {
+  [distortionInput, distortionOutput, inputAttenuator, dcBlocker, distortionLimiter, makeupGain, dryMix, wetMix, waveShaperNode].forEach(node => {
     nodes.add(node);
     activeNodes.add(node);
   });
   
   // Configure WaveShaper
-  waveShaperNode.curve = createDistortionCurve(amount * 100); // Scale amount for better control (0-100)
-  waveShaperNode.oversample = 'none'; // Hardcoded to 'none' for simplicity
+  waveShaperNode.curve = createDistortionCurve(amount * 20); // Reduced scaling for less aggressive distortion
+  waveShaperNode.oversample = 'none'; // Disable oversampling to prevent clicking artifacts
   
   // Set up dry/wet mix
   dryMix.gain.setValueAtTime(1 - mix, audioContext.currentTime);
@@ -350,10 +374,14 @@ const createDistortionNetwork = (audioContext, input, output, amount, mix, nodes
   input.connect(dryMix);
   dryMix.connect(output);
   
-  // Connect wet path
-  input.connect(distortionInput);
+  // Connect wet path with attenuation -> distortion -> DC blocking -> limiting -> makeup gain
+  input.connect(inputAttenuator);
+  inputAttenuator.connect(distortionInput);
   distortionInput.connect(waveShaperNode);
-  waveShaperNode.connect(wetMix);
+  waveShaperNode.connect(dcBlocker);
+  dcBlocker.connect(distortionLimiter);
+  distortionLimiter.connect(makeupGain);
+  makeupGain.connect(wetMix);
   wetMix.connect(output);
   
   return {
@@ -368,23 +396,32 @@ const createReverbNetwork = (audioContext, input, output, roomSize, damping, mix
   // Create reverb components
   const reverbInput = audioContext.createGain();
   const reverbOutput = audioContext.createGain();
+  const reverbLimiter = audioContext.createDynamicsCompressor();
   const dryMix = audioContext.createGain();
   const wetMix = audioContext.createGain();
   
   // Create multiple delay lines with different delay times for a richer reverb
+  // Reduced feedback values to prevent clipping
   const delays = [
-    { delayTime: 0.03, feedback: roomSize * 0.8 },
-    { delayTime: 0.05, feedback: roomSize * 0.7 },
-    { delayTime: 0.07, feedback: roomSize * 0.6 },
-    { delayTime: 0.11, feedback: roomSize * 0.5 }
+    { delayTime: 0.03, feedback: roomSize * 0.4 },
+    { delayTime: 0.05, feedback: roomSize * 0.35 },
+    { delayTime: 0.07, feedback: roomSize * 0.3 },
+    { delayTime: 0.11, feedback: roomSize * 0.25 }
   ];
   
   const delayNodes = [];
   const feedbackNodes = [];
   const filterNodes = [];
   
+  // Configure limiter for reverb output
+  reverbLimiter.threshold.value = -12.0;  // Start limiting at -12dB
+  reverbLimiter.knee.value = 2.0;         // Soft knee
+  reverbLimiter.ratio.value = 10.0;       // Strong limiting
+  reverbLimiter.attack.value = 0.001;     // Fast attack
+  reverbLimiter.release.value = 0.05;     // Quick release
+
   // Add all nodes to tracking sets
-  [reverbInput, reverbOutput, dryMix, wetMix].forEach(node => {
+  [reverbInput, reverbOutput, reverbLimiter, dryMix, wetMix].forEach(node => {
     nodes.add(node);
     activeNodes.add(node);
   });
@@ -397,8 +434,14 @@ const createReverbNetwork = (audioContext, input, output, roomSize, damping, mix
   input.connect(dryMix);
   dryMix.connect(output);
   
-  // Connect wet path input
-  input.connect(reverbInput);
+  // Connect wet path input with scaling to prevent overdriving
+  const inputScaler = audioContext.createGain();
+  inputScaler.gain.setValueAtTime(0.7, audioContext.currentTime); // Scale input to 70%
+  nodes.add(inputScaler);
+  activeNodes.add(inputScaler);
+
+  input.connect(inputScaler);
+  inputScaler.connect(reverbInput);
   
   // Create and connect delay lines
   delays.forEach((delayConfig, i) => {
@@ -412,8 +455,9 @@ const createReverbNetwork = (audioContext, input, output, roomSize, damping, mix
     feedbackNode.gain.setValueAtTime(delayConfig.feedback, audioContext.currentTime);
     
     filterNode.type = 'lowpass';
-    // Apply damping - higher damping = lower cutoff frequency
-    const cutoff = 20000 - (damping * 15000);
+    // Apply damping - improved range for better control
+    // Higher damping = lower cutoff frequency, range: 2kHz to 12kHz
+    const cutoff = 12000 - (damping * 10000);
     filterNode.frequency.setValueAtTime(cutoff, audioContext.currentTime);
     filterNode.Q.setValueAtTime(0.5, audioContext.currentTime);
     
@@ -436,13 +480,15 @@ const createReverbNetwork = (audioContext, input, output, roomSize, damping, mix
     });
   });
   
-  // Connect wet path output
-  reverbOutput.connect(wetMix);
+  // Connect wet path output through limiter
+  reverbOutput.connect(reverbLimiter);
+  reverbLimiter.connect(wetMix);
   wetMix.connect(output);
   
   return {
     input: reverbInput,
     output: reverbOutput,
+    limiter: reverbLimiter,
     delayNodes,
     feedbackNodes,
     filterNodes
@@ -470,17 +516,26 @@ const createTremoloNetwork = (audioContext, input, output, rate, depth, shape, m
   lfo.frequency.setValueAtTime(rate, audioContext.currentTime);
   
   // Set up tremolo gain - this will be modulated by the LFO
-  // Start at 1 (full volume)
-  tremoloGain.gain.setValueAtTime(1, audioContext.currentTime);
-  
-  // Connect LFO to tremolo gain
-  // Scale the depth to control how much the volume changes
-  // The oscillator output is -1 to 1, so we need to scale it to avoid negative gain
-  // For a depth of 1 (100%), we want the gain to go from 0 to 1
-  // For a depth of 0.5 (50%), we want the gain to go from 0.5 to 1
-  const scaledDepth = depth * 0.5; // Scale depth to 0-0.5 range
-  lfo.connect(tremoloGain.gain);
-  tremoloGain.gain.setValueAtTime(1 - scaledDepth, audioContext.currentTime);
+  // The oscillator output is -1 to 1, we need to scale and offset it properly
+  // For proper tremolo: LFO modulates around a base gain value
+
+  // Set the base gain (center point of oscillation)
+  const baseGain = 1.0;
+  tremoloGain.gain.setValueAtTime(baseGain, audioContext.currentTime);
+
+  // Create a gain node to scale the LFO output properly
+  const lfoScaler = audioContext.createGain();
+  // Scale depth to create proper modulation range
+  lfoScaler.gain.setValueAtTime(depth * 0.5, audioContext.currentTime); // Scale LFO amplitude
+
+  // Add nodes to tracking
+  nodes.add(lfoScaler);
+  activeNodes.add(lfoScaler);
+
+  // Connect LFO through scaler to tremolo gain AudioParam
+  // This creates additive modulation on top of the base gain
+  lfo.connect(lfoScaler);
+  lfoScaler.connect(tremoloGain.gain);
   
   // Set up dry/wet mix
   dryMix.gain.setValueAtTime(1 - mix, audioContext.currentTime);
@@ -773,7 +828,18 @@ const createOriginalBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, s
   activeNodes.add(finalVolumeNode);
 
   // Set the final volume based on the sound type
-  const finalVolume = soundType === 'wall' ? wallSoundVolume : circleSoundVolume;
+  // Apply scaling based on number of active effects to prevent cumulative gain buildup
+  let baseVolume = soundType === 'wall' ? wallSoundVolume : circleSoundVolume;
+  let effectCount = 0;
+  if (useDelayEnabled) effectCount++;
+  if (useReverbEnabled) effectCount++;
+  if (useDistortionEnabled) effectCount++;
+  if (useTremoloEnabled) effectCount++;
+
+  // Scale down volume based on number of effects (each effect adds ~10% reduction)
+  const effectScaling = Math.max(0.4, 1.0 - (effectCount * 0.1));
+  const finalVolume = baseVolume * effectScaling;
+
   finalVolumeNode.gain.setValueAtTime(finalVolume, audioContext.currentTime);
 
   // Connect through the final volume node to the global processing chain
