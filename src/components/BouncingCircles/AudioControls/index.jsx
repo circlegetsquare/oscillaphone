@@ -30,6 +30,9 @@ export default function AudioControls({ visible, speed, setSpeed }) {
     }}>
       <GlobalControls speed={speed} setSpeed={setSpeed} />
 
+      <CircleControls />
+      <WallControls />
+
       {/* Reset Controls Button */}
       <div style={{
         padding: '0px',
@@ -65,9 +68,6 @@ export default function AudioControls({ visible, speed, setSpeed }) {
           Reset controls
         </Button>
       </div>
-
-      <CircleControls />
-      <WallControls />
     </div>
   )
 }
