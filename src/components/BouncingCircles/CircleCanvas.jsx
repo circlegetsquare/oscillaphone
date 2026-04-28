@@ -107,6 +107,7 @@ const Circle = React.memo(({ id, state, onRef }) => {
     />
   )
 })
+Circle.displayName = 'Circle'
 
 /**
  * Component for rendering and animating circles
@@ -778,7 +779,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     <>
       <div
         ref={containerRef}
-        onMouseDown={handleMouseDown}
+        onPointerDown={handleMouseDown}
         style={{
           position: 'fixed',
           top: 0,
