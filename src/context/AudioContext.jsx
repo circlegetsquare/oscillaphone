@@ -27,9 +27,11 @@ import {
   setWallDistortionEnabled,
   setWallDistortionAmount,
   setWallDistortionMix,
+  setWallDistortionOversample,
   setCircleDistortionEnabled,
   setCircleDistortionAmount,
   setCircleDistortionMix,
+  setCircleDistortionOversample,
   setWallTremoloEnabled,
   setWallTremoloRate,
   setWallTremoloDepth,
@@ -75,6 +77,7 @@ const initialState = {
     distortion: {
       enabled: false,
       amount: 0.5,
+      oversample: '2x',
       mix: 0.3
     },
     
@@ -110,6 +113,7 @@ const initialState = {
     distortion: {
       enabled: false,
       amount: 0.5,
+      oversample: '2x',
       mix: 0.3
     },
     
@@ -145,6 +149,7 @@ const ActionTypes = {
   
   SET_WALL_DISTORTION_ENABLED: 'SET_WALL_DISTORTION_ENABLED',
   SET_WALL_DISTORTION_AMOUNT: 'SET_WALL_DISTORTION_AMOUNT',
+  SET_WALL_DISTORTION_OVERSAMPLE: 'SET_WALL_DISTORTION_OVERSAMPLE',
   SET_WALL_DISTORTION_MIX: 'SET_WALL_DISTORTION_MIX',
   
   SET_WALL_TREMOLO_ENABLED: 'SET_WALL_TREMOLO_ENABLED',
@@ -170,6 +175,7 @@ const ActionTypes = {
   
   SET_CIRCLE_DISTORTION_ENABLED: 'SET_CIRCLE_DISTORTION_ENABLED',
   SET_CIRCLE_DISTORTION_AMOUNT: 'SET_CIRCLE_DISTORTION_AMOUNT',
+  SET_CIRCLE_DISTORTION_OVERSAMPLE: 'SET_CIRCLE_DISTORTION_OVERSAMPLE',
   SET_CIRCLE_DISTORTION_MIX: 'SET_CIRCLE_DISTORTION_MIX',
   
   SET_CIRCLE_TREMOLO_ENABLED: 'SET_CIRCLE_TREMOLO_ENABLED',
@@ -353,6 +359,18 @@ function audioReducer(state, action) {
         }
       }
       
+    case ActionTypes.SET_WALL_DISTORTION_OVERSAMPLE:
+      return {
+        ...state,
+        wallSettings: {
+          ...state.wallSettings,
+          distortion: {
+            ...state.wallSettings.distortion,
+            oversample: action.payload
+          }
+        }
+      }
+
     case ActionTypes.SET_WALL_DISTORTION_MIX:
       return {
         ...state,
@@ -570,6 +588,18 @@ function audioReducer(state, action) {
         }
       }
       
+    case ActionTypes.SET_CIRCLE_DISTORTION_OVERSAMPLE:
+      return {
+        ...state,
+        circleSettings: {
+          ...state.circleSettings,
+          distortion: {
+            ...state.circleSettings.distortion,
+            oversample: action.payload
+          }
+        }
+      }
+
     case ActionTypes.SET_CIRCLE_DISTORTION_MIX:
       return {
         ...state,
@@ -682,6 +712,7 @@ export function AudioProvider({ children }) {
     // Set wall distortion parameters
     setWallDistortionEnabled(state.wallSettings.distortion.enabled)
     setWallDistortionAmount(state.wallSettings.distortion.amount)
+    setWallDistortionOversample(state.wallSettings.distortion.oversample)
     setWallDistortionMix(state.wallSettings.distortion.mix)
     
     // Set wall tremolo parameters
@@ -711,6 +742,7 @@ export function AudioProvider({ children }) {
     // Set circle distortion parameters
     setCircleDistortionEnabled(state.circleSettings.distortion.enabled)
     setCircleDistortionAmount(state.circleSettings.distortion.amount)
+    setCircleDistortionOversample(state.circleSettings.distortion.oversample)
     setCircleDistortionMix(state.circleSettings.distortion.mix)
     
     // Set circle tremolo parameters
@@ -785,7 +817,10 @@ export function AudioProvider({ children }) {
   const setWallDistortionAmountValue = (amount) => {
     dispatch({ type: ActionTypes.SET_WALL_DISTORTION_AMOUNT, payload: amount })
   }
-  
+
+  const setWallDistortionOversampleValue = (oversample) => {
+    dispatch({ type: ActionTypes.SET_WALL_DISTORTION_OVERSAMPLE, payload: oversample })
+  }
   
   const setWallDistortionMixValue = (mix) => {
     dispatch({ type: ActionTypes.SET_WALL_DISTORTION_MIX, payload: mix })
@@ -863,7 +898,10 @@ export function AudioProvider({ children }) {
   const setCircleDistortionAmountValue = (amount) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DISTORTION_AMOUNT, payload: amount })
   }
-  
+
+  const setCircleDistortionOversampleValue = (oversample) => {
+    dispatch({ type: ActionTypes.SET_CIRCLE_DISTORTION_OVERSAMPLE, payload: oversample })
+  }
   
   const setCircleDistortionMixValue = (mix) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DISTORTION_MIX, payload: mix })
@@ -924,6 +962,7 @@ export function AudioProvider({ children }) {
     
     setWallDistortionEnabled: setWallDistortionEnabledValue,
     setWallDistortionAmount: setWallDistortionAmountValue,
+    setWallDistortionOversample: setWallDistortionOversampleValue,
     setWallDistortionMix: setWallDistortionMixValue,
     
     setWallTremoloEnabled: setWallTremoloEnabledValue,
@@ -949,6 +988,7 @@ export function AudioProvider({ children }) {
     
     setCircleDistortionEnabled: setCircleDistortionEnabledValue,
     setCircleDistortionAmount: setCircleDistortionAmountValue,
+    setCircleDistortionOversample: setCircleDistortionOversampleValue,
     setCircleDistortionMix: setCircleDistortionMixValue,
     
     setCircleTremoloEnabled: setCircleTremoloEnabledValue,

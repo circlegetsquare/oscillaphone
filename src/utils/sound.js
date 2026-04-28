@@ -2,8 +2,8 @@
 let audioContext;
 
 // Re-enable audio optimization imports incrementally
-import { getAudioPool, destroyAudioPool } from './audioPool'
-import { getEffectChainPool, destroyEffectChainPool } from './effectChains'
+import { getAudioPool, destroyAudioPool, getAudioPoolStats } from './audioPool'
+import { getEffectChainPool, destroyEffectChainPool, getEffectChainStats } from './effectChains'
 
 // Global audio processing nodes
 let globalCompressor;
@@ -12,6 +12,9 @@ let globalMaster;
 
 // Keep track of active audio nodes for cleanup
 let activeNodes = new Set();
+
+// ID for the periodic cleanup interval so it can be cancelled
+let cleanupIntervalId = null;
 
 // Volume scaling constants
 const VOLUME_LIMITS = {
@@ -92,7 +95,7 @@ export const initAudioContext = () => {
     getEffectChainPool(audioContext);
 
     // Periodic cleanup to prevent memory leaks
-    setInterval(() => {
+    cleanupIntervalId = setInterval(() => {
       const pool = getAudioPool(audioContext);
       if (pool) {
         pool.cleanup();
@@ -104,6 +107,10 @@ export const initAudioContext = () => {
 
 // Cleanup audio resources
 export const cleanupAudio = () => {
+  if (cleanupIntervalId !== null) {
+    clearInterval(cleanupIntervalId);
+    cleanupIntervalId = null;
+  }
   if (audioContext) {
     // Clean up all active nodes
     activeNodes.forEach(node => {
@@ -625,7 +632,9 @@ const createOptimizedBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, 
       enabled: soundType === 'wall' ? wallTremoloEnabled : circleTremoloEnabled,
       rate: soundType === 'wall' ? wallTremoloRate : circleTremoloRate,
       depth: soundType === 'wall' ? wallTremoloDepth : circleTremoloDepth,
-      mix: soundType === 'wall' ? wallTremoloMix : circleTremoloMix
+      mix: soundType === 'wall' ? wallTremoloMix : circleTremoloMix,
+      shape: soundType === 'wall' ? wallTremoloShape : circleTremoloShape,
+      duration
     },
     reverb: {
       enabled: soundType === 'wall' ? wallReverbEnabled : circleReverbEnabled,
@@ -639,6 +648,18 @@ const createOptimizedBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, 
       mix: soundType === 'wall' ? wallDistortionMix : circleDistortionMix
     }
   };
+
+  // Apply the same per-effect volume scaling as createOriginalBeep to maintain
+  // consistent levels when switching between the two paths.
+  const baseVolumeScale = soundType === 'wall' ? wallSoundVolume : circleSoundVolume;
+  const activeEffectCount = [
+    settings.delay.enabled,
+    settings.reverb.enabled,
+    settings.distortion.enabled,
+    settings.tremolo.enabled
+  ].filter(Boolean).length;
+  const effectScaling = Math.max(0.4, 1.0 - activeEffectCount * 0.1);
+  settings.volume = volume * baseVolumeScale * effectScaling;
 
   effectChain.configure(settings);
 
@@ -658,10 +679,13 @@ const createOptimizedBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, 
   oscillator.start(currentTime);
   oscillator.stop(currentTime + duration);
 
-  // Schedule cleanup
+  // Schedule cleanup — extend timeout to cover reverb/delay tails
+  const reverbTailTime = settings.reverb.enabled ? 2.0 : 0;
+  const delayTailTime = settings.delay.enabled ? settings.delay.time * 4 : 0;
+  const tailTime = Math.max(reverbTailTime, delayTailTime);
   setTimeout(() => {
     chainPool.releaseChain(effectChain);
-  }, (duration + 0.1) * 1000);
+  }, (duration + tailTime + 0.1) * 1000);
 };
 
 // Keep original function as backup
@@ -862,8 +886,9 @@ const createOriginalBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, s
   oscillator.stop(stopTime);
 };
 
-// Temporarily revert to original while fixing EffectChain wiring
-const createBeep = createOriginalBeep;
+// Use the optimized path (effect chain pool) for all sounds.
+// createOriginalBeep is kept below as a fallback during the transition.
+const createBeep = createOptimizedBeep;
 
 // Convert x position to pan value (-1 to 1)
 export const calculatePan = (x, width) => {
@@ -1002,6 +1027,10 @@ export const setWallDistortionMix = (mix) => {
   wallDistortionMix = Math.max(0, Math.min(1.0, mix));
 };
 
+export const setWallDistortionOversample = (oversample) => {
+  wallDistortionOversample = oversample;
+};
+
 // Circle distortion setters/getters
 export const setCircleDistortionEnabled = (enabled) => {
   circleDistortionEnabled = enabled;
@@ -1014,6 +1043,10 @@ export const setCircleDistortionAmount = (amount) => {
 
 export const setCircleDistortionMix = (mix) => {
   circleDistortionMix = Math.max(0, Math.min(1.0, mix));
+};
+
+export const setCircleDistortionOversample = (oversample) => {
+  circleDistortionOversample = oversample;
 };
 
 // Wall tremolo setters/getters
@@ -1166,8 +1199,7 @@ export const cleanup = () => {
 
 // Audio Memory Optimization Exports
 // cleanupAudio already exported above
-export { getAudioPoolStats } from './audioPool';
-export { getEffectChainStats } from './effectChains';
+export { getAudioPoolStats, getEffectChainStats };
 
 // Debug function to get comprehensive audio memory stats
 export const getAudioMemoryStats = () => {
@@ -1188,11 +1220,4 @@ export const getAudioMemoryStats = () => {
   };
 };
 
-// Function to switch between optimized and original audio functions
-let useOptimizedAudio = true;
 
-export const setAudioOptimization = (enabled) => {
-  useOptimizedAudio = enabled;
-  // This would require more refactoring to fully implement the switch
-  console.log(`Audio optimization ${enabled ? 'enabled' : 'disabled'}`);
-};
