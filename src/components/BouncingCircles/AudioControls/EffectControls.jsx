@@ -1,4 +1,4 @@
-import React from 'react'
+import PropTypes from 'prop-types'
 import Slider from '../../shared/Slider'
 import Checkbox from '../../shared/Checkbox'
 import Button from '../../shared/Button'
@@ -279,4 +279,32 @@ export default function EffectControls({
       )}
     </ControlPanel>
   )
+}
+
+const effectPropShape = PropTypes.shape({
+  enabled: PropTypes.shape({ value: PropTypes.bool, onChange: PropTypes.func }),
+  time:     PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  feedback: PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  roomSize: PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  damping:  PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  amount:   PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  rate:     PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  depth:    PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  mix:      PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func })
+})
+
+EffectControls.propTypes = {
+  title: PropTypes.string,
+  waveform: PropTypes.shape({
+    value: PropTypes.string,
+    onChange: PropTypes.func,
+    options: PropTypes.arrayOf(PropTypes.shape({ id: PropTypes.string, name: PropTypes.string }))
+  }),
+  volume:     PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  duration:   PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  detune:     PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  delay:      effectPropShape,
+  reverb:     effectPropShape,
+  distortion: effectPropShape,
+  tremolo:    effectPropShape
 }

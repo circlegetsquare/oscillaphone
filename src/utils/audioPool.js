@@ -9,8 +9,9 @@ class AudioNodePool {
     this.maxSize = maxSize
 
     // Pools for different node types
+    // Note: oscillators are NOT pooled — the Web Audio spec forbids restarting
+    // a stopped oscillator, so they are always created fresh.
     this.pools = {
-      oscillator: [],
       gain: [],
       stereoPanner: [],
       delay: [],
@@ -31,7 +32,6 @@ class AudioNodePool {
    */
   preAllocate() {
     const nodeCounts = {
-      oscillator: 20,    // Most commonly used
       gain: 30,          // Used frequently for volume/mixing
       stereoPanner: 20,  // One per sound
       delay: 10,         // Less common
@@ -84,6 +84,14 @@ class AudioNodePool {
    * Get a node from the pool (reuse if available, create if needed)
    */
   getNode(nodeType) {
+    // Oscillators are always created fresh — the Web Audio spec forbids
+    // restarting a stopped oscillator, so pooling them provides no benefit.
+    if (nodeType === 'oscillator') {
+      const node = this.createFreshNode('oscillator')
+      if (node) this.activeNodes.add(node)
+      return node
+    }
+
     const pool = this.pools[nodeType]
 
     if (!pool) {
@@ -116,10 +124,6 @@ class AudioNodePool {
   resetNode(node, nodeType) {
     try {
       switch (nodeType) {
-        case 'oscillator':
-          // Oscillators can't be reset - they're single use
-          // We'll handle this specially in the sound generation
-          break
         case 'gain':
           node.gain.cancelScheduledValues(0)
           node.gain.setValueAtTime(1, this.audioContext.currentTime)
@@ -150,7 +154,7 @@ class AudioNodePool {
       // Disconnect all connections
       try {
         node.disconnect()
-      } catch (e) {
+      } catch {
         // Node might already be disconnected
       }
     } catch (error) {
@@ -174,7 +178,7 @@ class AudioNodePool {
       try {
         node.stop()
         node.disconnect()
-      } catch (e) {
+      } catch {
         // Already stopped/disconnected
       }
       return
@@ -189,7 +193,7 @@ class AudioNodePool {
       // Pool is full or doesn't exist, disconnect and abandon
       try {
         node.disconnect()
-      } catch (e) {
+      } catch {
         // Already disconnected
       }
     }
@@ -216,7 +220,7 @@ class AudioNodePool {
           // This is a rough check - in practice you'd want better type tracking
           try {
             return node.constructor.name.toLowerCase().includes(type.toLowerCase())
-          } catch (e) {
+          } catch {
             return false
           }
         }).length
@@ -237,7 +241,7 @@ class AudioNodePool {
         if (node.context.state === 'closed') {
           this.activeNodes.delete(node)
         }
-      } catch (e) {
+      } catch {
         this.activeNodes.delete(node)
       }
     })
@@ -254,7 +258,7 @@ class AudioNodePool {
           node.stop()
         }
         node.disconnect()
-      } catch (e) {
+      } catch {
         // Ignore errors during cleanup
       }
     })
@@ -264,7 +268,7 @@ class AudioNodePool {
       pool.forEach(node => {
         try {
           node.disconnect()
-        } catch (e) {
+        } catch {
           // Ignore errors during cleanup
         }
       })

@@ -1,4 +1,4 @@
-import React from 'react'
+import PropTypes from 'prop-types'
 
 const panelStyles = {
   padding: '12px',
@@ -41,4 +41,11 @@ export default function ControlPanel({
       {children}
     </div>
   )
+}
+
+ControlPanel.propTypes = {
+  title: PropTypes.string,
+  children: PropTypes.node,
+  style: PropTypes.object,
+  headerStyle: PropTypes.object
 }

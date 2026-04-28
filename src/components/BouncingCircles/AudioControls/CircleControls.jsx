@@ -1,4 +1,3 @@
-import React from 'react'
 import EffectControls from './EffectControls'
 import { useAudio } from '../../../context/AudioContext'
 

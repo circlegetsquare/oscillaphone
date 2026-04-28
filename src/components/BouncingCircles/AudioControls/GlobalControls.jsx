@@ -1,4 +1,4 @@
-import React from 'react'
+import PropTypes from 'prop-types'
 import Slider from '../../shared/Slider'
 import ControlPanel from '../../shared/ControlPanel'
 import { useAudio } from '../../../context/AudioContext'
@@ -42,4 +42,9 @@ export default function GlobalControls({ speed, setSpeed }) {
       />
     </ControlPanel>
   )
+}
+
+GlobalControls.propTypes = {
+  speed: PropTypes.number.isRequired,
+  setSpeed: PropTypes.func.isRequired
 }

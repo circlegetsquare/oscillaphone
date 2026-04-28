@@ -1,13 +1,15 @@
-import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react'
+import { useRef, useEffect, useMemo, useCallback, useState, memo } from 'react'
+import PropTypes from 'prop-types'
 import gsap from 'gsap'
 import { useAnimationState } from '../../hooks/useAnimationState'
 import { useCollisions } from '../../hooks/useCollisions'
 import { useColorPalette } from '../../hooks/useColorPalette'
-import { 
-  playCollisionBeep, 
-  playWallCollisionBeep, 
-  calculatePan 
+import {
+  playCollisionBeep,
+  playWallCollisionBeep,
+  calculatePan
 } from '../../utils/sound'
+import { useAudio } from '../../context/AudioContext'
 
 // Squish animation constants
 const SQUISH_LIMITS = {
@@ -59,31 +61,44 @@ const calculateSquishAmounts = (velocity) => {
  * @returns {string} RGBA color string with 0.25 alpha
  */
 const colorCache = new Map()
+const COLOR_CACHE_MAX = 200
 const convertHSLToRGBA = (hslColor) => {
   if (colorCache.has(hslColor)) {
     return colorCache.get(hslColor)
   }
 
-  // Create temporary element for color conversion
-  const div = document.createElement('div')
-  div.style.color = hslColor
-  document.body.appendChild(div)
-  const rgbColor = window.getComputedStyle(div).color
-  document.body.removeChild(div)
+  // Pure math HSL -> RGBA (avoids DOM append/remove)
+  const [h, s, l] = hslColor.match(/[\d.]+/g).map(Number)
+  const sn = s / 100
+  const ln = l / 100
+  const c = (1 - Math.abs(2 * ln - 1)) * sn
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = ln - c / 2
+  let r = 0, g = 0, b = 0
+  if      (h < 60)  { r = c; g = x; b = 0 }
+  else if (h < 120) { r = x; g = c; b = 0 }
+  else if (h < 180) { r = 0; g = c; b = x }
+  else if (h < 240) { r = 0; g = x; b = c }
+  else if (h < 300) { r = x; g = 0; b = c }
+  else              { r = c; g = 0; b = x }
+  const ri = Math.round((r + m) * 255)
+  const gi = Math.round((g + m) * 255)
+  const bi = Math.round((b + m) * 255)
+  const result = `rgba(${ri}, ${gi}, ${bi}, 0.25)`
 
-  // Convert to rgba
-  const rgbaColor = rgbColor.replace('rgb', 'rgba').replace(')', ', 0.25)')
+  // Evict oldest entry if cache is full
+  if (colorCache.size >= COLOR_CACHE_MAX) {
+    colorCache.delete(colorCache.keys().next().value)
+  }
+  colorCache.set(hslColor, result)
 
-  // Cache the result
-  colorCache.set(hslColor, rgbaColor)
-
-  return rgbaColor
+  return result
 }
 
 /**
  * Memoized Circle component to prevent unnecessary re-renders
  */
-const Circle = React.memo(({ id, state, onRef }) => {
+const Circle = memo(({ id, state, onRef }) => {
   const backgroundColor = convertHSLToRGBA(state.color)
 
   return (
@@ -106,6 +121,16 @@ const Circle = React.memo(({ id, state, onRef }) => {
     />
   )
 })
+Circle.displayName = 'Circle'
+
+Circle.propTypes = {
+  id: PropTypes.string.isRequired,
+  state: PropTypes.shape({
+    color: PropTypes.string,
+    radius: PropTypes.number
+  }).isRequired,
+  onRef: PropTypes.func.isRequired
+}
 
 /**
  * Component for rendering and animating circles
@@ -115,6 +140,13 @@ const Circle = React.memo(({ id, state, onRef }) => {
  * @param {number} props.initialSpeed - Initial speed for new circles
  */
 export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) {
+  const { wallSettings, circleSettings } = useAudio()
+  // Refs so ticker functions and rAF loops always read the latest settings
+  // without needing to be recreated on every state change.
+  const wallSettingsRef = useRef(wallSettings)
+  const circleSettingsRef = useRef(circleSettings)
+  useEffect(() => { wallSettingsRef.current = wallSettings }, [wallSettings])
+  useEffect(() => { circleSettingsRef.current = circleSettings }, [circleSettings])
   const containerRef = useRef(null)
   const circleRefs = useRef(new Map())
   const squishAnimations = useRef(new Map())
@@ -127,19 +159,14 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   const {
     createTimeline,
     addTicker,
-    removeTicker,
-    setAnimationState,
-    getAnimationState
   } = useAnimationState()
   
   const {
     initCircle,
-    removeCircle,
     getCircleState,
     updateCircleState,
     handleWallCollision,
     handleCircleCollisions,
-    updatePositions,
     updateSpatialGrid,
     circleStates
   } = useCollisions()
@@ -150,8 +177,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     generateRandomColor,
     addToColorPalette,
     generateGradient,
-    updateBackgroundColors,
-    setBackgroundColors
+    updateBackgroundColors
   } = useColorPalette()
   
   // Store the timeline in a ref to persist across re-renders
@@ -213,12 +239,14 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   
   // Cleanup animations periodically
   useEffect(() => {
-    const CLEANUP_INTERVAL = 1000; // Check every second
-    const GRACE_PERIOD = 500; // Extra time to allow for animations to complete
+    const squishAnim = squishAnimations.current
+    const glowAnim = glowAnimations.current
+    const CLEANUP_INTERVAL = 1000;
+    const GRACE_PERIOD = 500;
 
     const cleanupAnimations = () => {
       const now = Date.now();
-      squishAnimations.current.forEach((data, element) => {
+      squishAnim.forEach((data, element) => {
         // Check if animation has exceeded its expected duration (plus grace period)
         if (now > data.expectedEndTime + GRACE_PERIOD) {
           // Kill the animation
@@ -232,7 +260,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
             rotation: 0
           });
           // Remove from the animations map
-          squishAnimations.current.delete(element);
+          squishAnim.delete(element);
         }
       });
     };
@@ -244,20 +272,20 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     return () => {
       clearInterval(intervalId);
       // Kill all remaining animations
-      squishAnimations.current.forEach((data) => {
+      squishAnim.forEach((data) => {
         if (data.timeline) {
           data.timeline.kill();
         }
       });
-      squishAnimations.current.clear();
+      squishAnim.clear();
 
       // Kill all glow animations
-      glowAnimations.current.forEach((tween) => {
+      glowAnim.forEach((tween) => {
         if (tween) {
           tween.kill();
         }
       });
-      glowAnimations.current.clear();
+      glowAnim.clear();
     };
   }, []);
 
@@ -292,6 +320,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   /**
    * Remove a circle from the render state
    */
+  // eslint-disable-next-line no-unused-vars
   const removeCircleFromRender = useCallback((id) => {
     setRenderCircles(prev => {
       const newMap = new Map(prev)
@@ -666,7 +695,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           if (shouldPlaySound) {
             const pan = calculatePan(updatedState.x, bounds.width);
             const velocity = hitLeftRight ? Math.abs(updatedState.vx) : Math.abs(updatedState.vy);
-            playWallCollisionBeep(pan, velocity);
+            playWallCollisionBeep(pan, velocity, wallSettingsRef.current);
           }
         }
         
@@ -744,7 +773,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
             const dvx = state2.vx - state1.vx;
             const dvy = state2.vy - state1.vy;
             const relativeVelocity = Math.sqrt(dvx * dvx + dvy * dvy);
-            playCollisionBeep(pan, relativeVelocity);
+            playCollisionBeep(pan, relativeVelocity, circleSettingsRef.current);
 
             // Update the last collision time
             lastCollisionTimes.current.set(pairKey, currentTime);
@@ -770,7 +799,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     <>
       <div
         ref={containerRef}
-        onMouseDown={handleMouseDown}
+        onPointerDown={handleMouseDown}
         style={{
           position: 'fixed',
           top: 0,
@@ -802,4 +831,9 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       </div>
     </>
   )
+}
+
+CircleCanvas.propTypes = {
+  onBackgroundChange: PropTypes.func,
+  initialSpeed: PropTypes.number
 }

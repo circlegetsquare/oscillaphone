@@ -1,10 +1,11 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { AudioProvider } from '../../context/AudioContext'
 import ScaleSelector from './ScaleSelector'
 import AudioControls from './AudioControls'
 import CircleCanvas from './CircleCanvas'
 import Button from '../shared/Button'
 import gsap from 'gsap'
+import { useColorPalette } from '../../hooks/useColorPalette'
 
 /**
  * Main BouncingCircles component
@@ -12,17 +13,16 @@ import gsap from 'gsap'
  */
 export default function BouncingCircles() {
   const [showControls, setShowControls] = useState(false)
-  const [backgroundColors, setBackgroundColors] = useState([])
   const [ballSpeed, setBallSpeed] = useState(15) // Default speed matches the original INITIAL_SPEED
   const buttonRef = useRef(null)
   const buttonTimeline = useRef(null)
   const controlsRef = useRef(null)
   const controlsTimeline = useRef(null)
+
+  const { generateGradient } = useColorPalette()
   
   // Handle background color changes from CircleCanvas
-  const handleBackgroundChange = (colors) => {
-    setBackgroundColors(colors)
-  }
+  const handleBackgroundChange = () => {}
   
   // Generate random HSL color
   const generateRandomColor = useCallback(() => {
@@ -34,29 +34,6 @@ export default function BouncingCircles() {
   const generateRandomColors = useCallback((count = 3) => {
     return Array(count).fill().map(() => generateRandomColor())
   }, [generateRandomColor])
-  
-  // Generate gradient for animation
-  const generateGradient = useCallback((colors, progress) => {
-    // Convert HSL colors to HSLA with opacity
-    const gradientColors = colors.map(color => {
-      const [h, s, l] = color.match(/\d+/g)
-      return `hsla(${h}, ${s}%, ${l}%, 0.7)` // Reduced opacity for better blending
-    })
-
-    // Calculate continuous rotation angles with offset
-    const angles = gradientColors.map((_, i) => {
-      const baseAngle = (360 / colors.length) * i // Evenly space base angles
-      const rotationAngle = ((baseAngle + progress * 360) % 360).toFixed(2) // Full rotation based on progress
-      return rotationAngle
-    })
-    
-    // Build gradient string
-    return `
-      linear-gradient(${angles[0]}deg, ${gradientColors[0]} 0%, rgba(0,0,0,0) 70.71%),
-      linear-gradient(${angles[1]}deg, ${gradientColors[1]} 0%, rgba(0,0,0,0) 70.71%),
-      linear-gradient(${angles[2]}deg, ${gradientColors[2]} 0%, rgba(0,0,0,0) 70.71%)
-    `.trim().replace(/\s+/g, ' ')
-  }, [])
   
   // Animate controls menu in/out
   const toggleControls = useCallback(() => {

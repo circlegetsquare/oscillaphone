@@ -127,7 +127,7 @@ export function useCollisions() {
     const processedPairs = new Set()
 
     // Clear old collision states
-    collisionStates.current.forEach((collisions, id) => {
+    collisionStates.current.forEach((collisions) => {
       collisions.clear()
     })
 
