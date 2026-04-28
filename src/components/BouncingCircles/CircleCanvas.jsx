@@ -60,25 +60,38 @@ const calculateSquishAmounts = (velocity) => {
  * @returns {string} RGBA color string with 0.25 alpha
  */
 const colorCache = new Map()
+const COLOR_CACHE_MAX = 200
 const convertHSLToRGBA = (hslColor) => {
   if (colorCache.has(hslColor)) {
     return colorCache.get(hslColor)
   }
 
-  // Create temporary element for color conversion
-  const div = document.createElement('div')
-  div.style.color = hslColor
-  document.body.appendChild(div)
-  const rgbColor = window.getComputedStyle(div).color
-  document.body.removeChild(div)
+  // Pure math HSL -> RGBA (avoids DOM append/remove)
+  const [h, s, l] = hslColor.match(/[\d.]+/g).map(Number)
+  const sn = s / 100
+  const ln = l / 100
+  const c = (1 - Math.abs(2 * ln - 1)) * sn
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+  const m = ln - c / 2
+  let r = 0, g = 0, b = 0
+  if      (h < 60)  { r = c; g = x; b = 0 }
+  else if (h < 120) { r = x; g = c; b = 0 }
+  else if (h < 180) { r = 0; g = c; b = x }
+  else if (h < 240) { r = 0; g = x; b = c }
+  else if (h < 300) { r = x; g = 0; b = c }
+  else              { r = c; g = 0; b = x }
+  const ri = Math.round((r + m) * 255)
+  const gi = Math.round((g + m) * 255)
+  const bi = Math.round((b + m) * 255)
+  const result = `rgba(${ri}, ${gi}, ${bi}, 0.25)`
 
-  // Convert to rgba
-  const rgbaColor = rgbColor.replace('rgb', 'rgba').replace(')', ', 0.25)')
+  // Evict oldest entry if cache is full
+  if (colorCache.size >= COLOR_CACHE_MAX) {
+    colorCache.delete(colorCache.keys().next().value)
+  }
+  colorCache.set(hslColor, result)
 
-  // Cache the result
-  colorCache.set(hslColor, rgbaColor)
-
-  return rgbaColor
+  return result
 }
 
 /**
