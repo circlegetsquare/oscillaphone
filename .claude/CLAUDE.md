@@ -14,9 +14,27 @@ npm run dev          # Start dev server (http://localhost:5173/oscillaphone/)
 npm run build        # Production build → dist/
 npm run lint         # ESLint (must be 0 errors before commit)
 npm run preview      # Preview production build locally
+npm test             # Run unit tests (vitest)
+npm run test:watch   # Watch mode
+npm run test:coverage # Coverage report
 ```
 
-**Workflow**: `npm run dev` for development, `npm run lint` before every commit.
+**Workflow**: `npm run dev` for development, `npm run lint` before every commit, `npm test` to verify pure logic.
+
+## Testing
+
+**Stack**: Vitest (built into Vite, zero config, ESM-native). No jsdom needed — tests run in node environment.
+
+**What's tested** (50 tests, 3 files):
+- `src/utils/physics.test.js` — `checkCircleCollision`, `getCircleDistance`, `resolveCollision`
+- `src/utils/spatialGrid.test.js` — `SpatialGrid` insert, query, clear, bounds clamping
+- `src/context/audioReducer.test.js` — every action type, RESET_ALL_CONTROLS, unknown action passthrough
+
+**What's not tested** (and why):
+- `sound.js` / `effectChains.js` — Web Audio API doesn't exist in node; mocking it tests the mocks, not the logic
+- GSAP tickers, rAF loops, `CircleCanvas` — too much DOM/layout dependency; covered by manual play-testing
+
+**Adding tests**: `audioReducer`, `initialState`, and `ActionTypes` are exported from `AudioContext.jsx` specifically for testing. The test file mocks `../utils/sound` via `vi.mock` to prevent Web Audio API construction at import time.
 
 ## Architecture Overview
 
@@ -139,6 +157,38 @@ Wall collision sounds and ball-collision sounds have completely independent sett
 - **Stale closures**: Always read settings inside long-lived closures via `*Ref.current`, never capture state directly
 - **Audio node reuse**: Oscillators cannot be restarted after `.stop()` — don't pool them
 - **Ticker cleanup**: GSAP tickers added in `useEffect` must be removed in the cleanup return; use `addTicker`/`removeTicker` from `useAnimationState`
+
+### Commit Conventions
+Use conventional commits — enforced by practice, not tooling:
+- `feat:` — new user-facing feature
+- `fix:` — bug fix
+- `chore:` — maintenance, deps, tooling, cleanup
+- `docs:` — README, CLAUDE.md, comments only
+- `refactor:` — code change with no behaviour change
+
+### AudioContext Action Types
+All actions follow the pattern `SET_{WALL|CIRCLE}_{PARAM}` or `SET_{WALL|CIRCLE}_{EFFECT}_{PARAM}`. Full list in `src/context/AudioContext.jsx` (`ActionTypes` object, line ~91). Summary:
+
+```
+SET_SCALE, SET_GLOBAL_VOLUME
+SET_WALL_DURATION, SET_WALL_DETUNE, SET_WALL_WAVEFORM, SET_WALL_VOLUME
+SET_WALL_DELAY_{ENABLED,TIME,FEEDBACK,MIX}
+SET_WALL_REVERB_{ENABLED,ROOM_SIZE,DAMPING,MIX}
+SET_WALL_DISTORTION_{ENABLED,AMOUNT,OVERSAMPLE,MIX}
+SET_WALL_TREMOLO_{ENABLED,RATE,DEPTH,MIX}
+SET_CIRCLE_*  — mirrors all SET_WALL_* above
+RESET_ALL_CONTROLS
+```
+
+When adding a new effect, mirror both `WALL` and `CIRCLE` variants. Dispatch via `const { dispatch } = useAudio()`.
+
+### CircleCanvas Props
+```
+CircleCanvas.propTypes = {
+  onBackgroundChange: PropTypes.func,   // optional; called with gradient string
+  initialSpeed: PropTypes.number        // optional; default defined internally
+}
+```
 
 ---
 

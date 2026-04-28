@@ -5,4 +5,12 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/oscillaphone/',
+  test: {
+    environment: 'node',
+    include: ['src/**/*.test.js'],
+    coverage: {
+      provider: 'v8',
+      include: ['src/utils/physics.js', 'src/utils/spatialGrid.js', 'src/context/AudioContext.jsx'],
+    },
+  },
 })

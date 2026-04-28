@@ -630,6 +630,9 @@ function audioReducer(state, action) {
   }
 }
 
+// Exported for unit testing
+export { audioReducer, initialState, ActionTypes }
+
 // Create context
 const AudioContext = createContext()
 
