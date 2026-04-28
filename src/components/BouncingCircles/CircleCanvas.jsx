@@ -3,11 +3,12 @@ import gsap from 'gsap'
 import { useAnimationState } from '../../hooks/useAnimationState'
 import { useCollisions } from '../../hooks/useCollisions'
 import { useColorPalette } from '../../hooks/useColorPalette'
-import { 
-  playCollisionBeep, 
-  playWallCollisionBeep, 
-  calculatePan 
+import {
+  playCollisionBeep,
+  playWallCollisionBeep,
+  calculatePan
 } from '../../utils/sound'
+import { useAudio } from '../../context/AudioContext'
 
 // Squish animation constants
 const SQUISH_LIMITS = {
@@ -115,6 +116,7 @@ const Circle = React.memo(({ id, state, onRef }) => {
  * @param {number} props.initialSpeed - Initial speed for new circles
  */
 export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) {
+  const { wallSettings, circleSettings } = useAudio()
   const containerRef = useRef(null)
   const circleRefs = useRef(new Map())
   const squishAnimations = useRef(new Map())
@@ -666,7 +668,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           if (shouldPlaySound) {
             const pan = calculatePan(updatedState.x, bounds.width);
             const velocity = hitLeftRight ? Math.abs(updatedState.vx) : Math.abs(updatedState.vy);
-            playWallCollisionBeep(pan, velocity);
+            playWallCollisionBeep(pan, velocity, wallSettings);
           }
         }
         
@@ -744,7 +746,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
             const dvx = state2.vx - state1.vx;
             const dvy = state2.vy - state1.vy;
             const relativeVelocity = Math.sqrt(dvx * dvx + dvy * dvy);
-            playCollisionBeep(pan, relativeVelocity);
+            playCollisionBeep(pan, relativeVelocity, circleSettings);
 
             // Update the last collision time
             lastCollisionTimes.current.set(pairKey, currentTime);

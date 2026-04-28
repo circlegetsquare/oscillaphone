@@ -1,49 +1,8 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react'
-import { 
+import {
   initAudioContext,
   setScale,
-  setWallDuration,
-  setCircleDuration,
-  setWallDetune,
-  setCircleDetune,
-  setWallWaveform,
-  setCircleWaveform,
-  setWallDelayEnabled,
-  setWallDelayTime,
-  setWallDelayFeedback,
-  setWallDelayMix,
-  setCircleDelayEnabled,
-  setCircleDelayTime,
-  setCircleDelayFeedback,
-  setCircleDelayMix,
-  setWallReverbEnabled,
-  setWallReverbRoomSize,
-  setWallReverbDamping,
-  setWallReverbMix,
-  setCircleReverbEnabled,
-  setCircleReverbRoomSize,
-  setCircleReverbDamping,
-  setCircleReverbMix,
-  setWallDistortionEnabled,
-  setWallDistortionAmount,
-  setWallDistortionMix,
-  setWallDistortionOversample,
-  setCircleDistortionEnabled,
-  setCircleDistortionAmount,
-  setCircleDistortionMix,
-  setCircleDistortionOversample,
-  setWallTremoloEnabled,
-  setWallTremoloRate,
-  setWallTremoloDepth,
-  setWallTremoloMix,
-  setCircleTremoloEnabled,
-  setCircleTremoloRate,
-  setCircleTremoloDepth,
-  setCircleTremoloMix,
-  setWallVolume,
-  setCircleVolume,
   setGlobalVolume,
-  getGlobalVolume,
   AVAILABLE_SCALES,
   WAVEFORMS
 } from '../utils/sound'
@@ -683,74 +642,13 @@ export function AudioProvider({ children }) {
     initAudioContext();
   }, []);
   
-  // Apply audio settings to sound.js whenever state changes
-  useEffect(() => {
-    // Set scale
-    setScale(state.currentScale)
-    
-    // Set global volume
-    setGlobalVolume(state.globalVolume)
-    
-    // Set wall sound parameters
-    setWallDuration(state.wallSettings.duration)
-    setWallDetune(state.wallSettings.detune)
-    setWallWaveform(state.wallSettings.waveform)
-    setWallVolume(state.wallSettings.volume)
-    
-    // Set wall delay parameters
-    setWallDelayEnabled(state.wallSettings.delay.enabled)
-    setWallDelayTime(state.wallSettings.delay.time)
-    setWallDelayFeedback(state.wallSettings.delay.feedback)
-    setWallDelayMix(state.wallSettings.delay.mix)
-    
-    // Set wall reverb parameters
-    setWallReverbEnabled(state.wallSettings.reverb.enabled)
-    setWallReverbRoomSize(state.wallSettings.reverb.roomSize)
-    setWallReverbDamping(state.wallSettings.reverb.damping)
-    setWallReverbMix(state.wallSettings.reverb.mix)
-    
-    // Set wall distortion parameters
-    setWallDistortionEnabled(state.wallSettings.distortion.enabled)
-    setWallDistortionAmount(state.wallSettings.distortion.amount)
-    setWallDistortionOversample(state.wallSettings.distortion.oversample)
-    setWallDistortionMix(state.wallSettings.distortion.mix)
-    
-    // Set wall tremolo parameters
-    setWallTremoloEnabled(state.wallSettings.tremolo.enabled)
-    setWallTremoloRate(state.wallSettings.tremolo.rate)
-    setWallTremoloDepth(state.wallSettings.tremolo.depth)
-    setWallTremoloMix(state.wallSettings.tremolo.mix)
-    
-    // Set circle sound parameters
-    setCircleDuration(state.circleSettings.duration)
-    setCircleDetune(state.circleSettings.detune)
-    setCircleWaveform(state.circleSettings.waveform)
-    setCircleVolume(state.circleSettings.volume)
-    
-    // Set circle delay parameters
-    setCircleDelayEnabled(state.circleSettings.delay.enabled)
-    setCircleDelayTime(state.circleSettings.delay.time)
-    setCircleDelayFeedback(state.circleSettings.delay.feedback)
-    setCircleDelayMix(state.circleSettings.delay.mix)
-    
-    // Set circle reverb parameters
-    setCircleReverbEnabled(state.circleSettings.reverb.enabled)
-    setCircleReverbRoomSize(state.circleSettings.reverb.roomSize)
-    setCircleReverbDamping(state.circleSettings.reverb.damping)
-    setCircleReverbMix(state.circleSettings.reverb.mix)
-    
-    // Set circle distortion parameters
-    setCircleDistortionEnabled(state.circleSettings.distortion.enabled)
-    setCircleDistortionAmount(state.circleSettings.distortion.amount)
-    setCircleDistortionOversample(state.circleSettings.distortion.oversample)
-    setCircleDistortionMix(state.circleSettings.distortion.mix)
-    
-    // Set circle tremolo parameters
-    setCircleTremoloEnabled(state.circleSettings.tremolo.enabled)
-    setCircleTremoloRate(state.circleSettings.tremolo.rate)
-    setCircleTremoloDepth(state.circleSettings.tremolo.depth)
-    setCircleTremoloMix(state.circleSettings.tremolo.mix)
-  }, [state])
+  // Sync the two remaining module-level audio state values:
+  // - currentScale (used by getRandomNote / playBeep in sound.js)
+  // - globalMaster.gain (a live Web Audio node param)
+  // All other settings are passed directly to playCollisionBeep / playWallCollisionBeep
+  // from CircleCanvas, eliminating the dual-state sync pattern.
+  useEffect(() => { setScale(state.currentScale) }, [state.currentScale])
+  useEffect(() => { setGlobalVolume(state.globalVolume) }, [state.globalVolume])
   
   // Action creators
   const setCurrentScale = (scale) => {
