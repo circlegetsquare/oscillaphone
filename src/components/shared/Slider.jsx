@@ -1,4 +1,4 @@
-import React from 'react'
+import PropTypes from 'prop-types'
 
 const sliderContainerStyles = {
   display: 'flex',
@@ -66,4 +66,17 @@ export default function Slider({
       />
     </div>
   )
+}
+
+Slider.propTypes = {
+  label: PropTypes.string,
+  value: PropTypes.number.isRequired,
+  onChange: PropTypes.func.isRequired,
+  min: PropTypes.number,
+  max: PropTypes.number,
+  step: PropTypes.number,
+  formatValue: PropTypes.func,
+  style: PropTypes.object,
+  sliderStyle: PropTypes.object,
+  labelStyle: PropTypes.object
 }

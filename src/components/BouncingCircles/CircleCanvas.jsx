@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react'
+import { useRef, useEffect, useMemo, useCallback, useState, memo } from 'react'
+import PropTypes from 'prop-types'
 import gsap from 'gsap'
 import { useAnimationState } from '../../hooks/useAnimationState'
 import { useCollisions } from '../../hooks/useCollisions'
@@ -97,7 +98,7 @@ const convertHSLToRGBA = (hslColor) => {
 /**
  * Memoized Circle component to prevent unnecessary re-renders
  */
-const Circle = React.memo(({ id, state, onRef }) => {
+const Circle = memo(({ id, state, onRef }) => {
   const backgroundColor = convertHSLToRGBA(state.color)
 
   return (
@@ -121,6 +122,15 @@ const Circle = React.memo(({ id, state, onRef }) => {
   )
 })
 Circle.displayName = 'Circle'
+
+Circle.propTypes = {
+  id: PropTypes.string.isRequired,
+  state: PropTypes.shape({
+    color: PropTypes.string,
+    radius: PropTypes.number
+  }).isRequired,
+  onRef: PropTypes.func.isRequired
+}
 
 /**
  * Component for rendering and animating circles
@@ -149,19 +159,14 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   const {
     createTimeline,
     addTicker,
-    removeTicker,
-    setAnimationState,
-    getAnimationState
   } = useAnimationState()
   
   const {
     initCircle,
-    removeCircle,
     getCircleState,
     updateCircleState,
     handleWallCollision,
     handleCircleCollisions,
-    updatePositions,
     updateSpatialGrid,
     circleStates
   } = useCollisions()
@@ -172,8 +177,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     generateRandomColor,
     addToColorPalette,
     generateGradient,
-    updateBackgroundColors,
-    setBackgroundColors
+    updateBackgroundColors
   } = useColorPalette()
   
   // Store the timeline in a ref to persist across re-renders
@@ -235,12 +239,14 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   
   // Cleanup animations periodically
   useEffect(() => {
-    const CLEANUP_INTERVAL = 1000; // Check every second
-    const GRACE_PERIOD = 500; // Extra time to allow for animations to complete
+    const squishAnim = squishAnimations.current
+    const glowAnim = glowAnimations.current
+    const CLEANUP_INTERVAL = 1000;
+    const GRACE_PERIOD = 500;
 
     const cleanupAnimations = () => {
       const now = Date.now();
-      squishAnimations.current.forEach((data, element) => {
+      squishAnim.forEach((data, element) => {
         // Check if animation has exceeded its expected duration (plus grace period)
         if (now > data.expectedEndTime + GRACE_PERIOD) {
           // Kill the animation
@@ -254,7 +260,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
             rotation: 0
           });
           // Remove from the animations map
-          squishAnimations.current.delete(element);
+          squishAnim.delete(element);
         }
       });
     };
@@ -266,20 +272,20 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     return () => {
       clearInterval(intervalId);
       // Kill all remaining animations
-      squishAnimations.current.forEach((data) => {
+      squishAnim.forEach((data) => {
         if (data.timeline) {
           data.timeline.kill();
         }
       });
-      squishAnimations.current.clear();
+      squishAnim.clear();
 
       // Kill all glow animations
-      glowAnimations.current.forEach((tween) => {
+      glowAnim.forEach((tween) => {
         if (tween) {
           tween.kill();
         }
       });
-      glowAnimations.current.clear();
+      glowAnim.clear();
     };
   }, []);
 
@@ -314,6 +320,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   /**
    * Remove a circle from the render state
    */
+  // eslint-disable-next-line no-unused-vars
   const removeCircleFromRender = useCallback((id) => {
     setRenderCircles(prev => {
       const newMap = new Map(prev)
@@ -824,4 +831,9 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       </div>
     </>
   )
+}
+
+CircleCanvas.propTypes = {
+  onBackgroundChange: PropTypes.func,
+  initialSpeed: PropTypes.number
 }

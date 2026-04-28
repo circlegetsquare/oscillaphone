@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { AudioProvider } from '../../context/AudioContext'
 import ScaleSelector from './ScaleSelector'
 import AudioControls from './AudioControls'
@@ -13,7 +13,6 @@ import { useColorPalette } from '../../hooks/useColorPalette'
  */
 export default function BouncingCircles() {
   const [showControls, setShowControls] = useState(false)
-  const [backgroundColors, setBackgroundColors] = useState([])
   const [ballSpeed, setBallSpeed] = useState(15) // Default speed matches the original INITIAL_SPEED
   const buttonRef = useRef(null)
   const buttonTimeline = useRef(null)
@@ -23,9 +22,7 @@ export default function BouncingCircles() {
   const { generateGradient } = useColorPalette()
   
   // Handle background color changes from CircleCanvas
-  const handleBackgroundChange = (colors) => {
-    setBackgroundColors(colors)
-  }
+  const handleBackgroundChange = () => {}
   
   // Generate random HSL color
   const generateRandomColor = useCallback(() => {

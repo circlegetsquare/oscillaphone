@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import { createContext, useContext, useReducer, useEffect } from 'react'
+import PropTypes from 'prop-types'
 import {
   initAudioContext,
   setScale,
@@ -903,6 +904,10 @@ export function AudioProvider({ children }) {
       {children}
     </AudioContext.Provider>
   )
+}
+
+AudioProvider.propTypes = {
+  children: PropTypes.node.isRequired
 }
 
 // Custom hook to use the audio context

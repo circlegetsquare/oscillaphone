@@ -94,21 +94,24 @@ export function useAnimationState() {
   
   // Cleanup all animations on unmount
   useEffect(() => {
+    const tl = timelines.current
+    const tickers = tickerFunctions.current
+    const states = animationStates.current
     return () => {
       // Kill all timelines
-      timelines.current.forEach(timeline => {
+      tl.forEach(timeline => {
         timeline.kill()
       })
       
       // Remove all ticker functions
-      tickerFunctions.current.forEach(fn => {
+      tickers.forEach(fn => {
         gsap.ticker.remove(fn)
       })
       
       // Clear all maps
-      timelines.current.clear()
-      tickerFunctions.current.clear()
-      animationStates.current.clear()
+      tl.clear()
+      tickers.clear()
+      states.clear()
     }
   }, [])
   

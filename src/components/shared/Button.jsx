@@ -1,4 +1,5 @@
-import React, { useState, forwardRef } from 'react'
+import { useState, forwardRef } from 'react'
+import PropTypes from 'prop-types'
 
 const defaultStyles = {
   padding: '8px 16px',
@@ -62,5 +63,15 @@ const Button = forwardRef(({
 
 // Add display name for debugging
 Button.displayName = 'Button'
+
+Button.propTypes = {
+  backgroundColor: PropTypes.string,
+  hoverColor: PropTypes.string,
+  activeColor: PropTypes.string,
+  isActive: PropTypes.bool,
+  onClick: PropTypes.func,
+  children: PropTypes.node,
+  style: PropTypes.object
+}
 
 export default Button

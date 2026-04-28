@@ -154,7 +154,7 @@ class AudioNodePool {
       // Disconnect all connections
       try {
         node.disconnect()
-      } catch (e) {
+      } catch {
         // Node might already be disconnected
       }
     } catch (error) {
@@ -178,7 +178,7 @@ class AudioNodePool {
       try {
         node.stop()
         node.disconnect()
-      } catch (e) {
+      } catch {
         // Already stopped/disconnected
       }
       return
@@ -193,7 +193,7 @@ class AudioNodePool {
       // Pool is full or doesn't exist, disconnect and abandon
       try {
         node.disconnect()
-      } catch (e) {
+      } catch {
         // Already disconnected
       }
     }
@@ -220,7 +220,7 @@ class AudioNodePool {
           // This is a rough check - in practice you'd want better type tracking
           try {
             return node.constructor.name.toLowerCase().includes(type.toLowerCase())
-          } catch (e) {
+          } catch {
             return false
           }
         }).length
@@ -241,7 +241,7 @@ class AudioNodePool {
         if (node.context.state === 'closed') {
           this.activeNodes.delete(node)
         }
-      } catch (e) {
+      } catch {
         this.activeNodes.delete(node)
       }
     })
@@ -258,7 +258,7 @@ class AudioNodePool {
           node.stop()
         }
         node.disconnect()
-      } catch (e) {
+      } catch {
         // Ignore errors during cleanup
       }
     })
@@ -268,7 +268,7 @@ class AudioNodePool {
       pool.forEach(node => {
         try {
           node.disconnect()
-        } catch (e) {
+        } catch {
           // Ignore errors during cleanup
         }
       })

@@ -1,4 +1,4 @@
-import React from 'react'
+import PropTypes from 'prop-types'
 import WallControls from './WallControls'
 import CircleControls from './CircleControls'
 import GlobalControls from './GlobalControls'
@@ -70,4 +70,10 @@ export default function AudioControls({ visible, speed, setSpeed }) {
       </div>
     </div>
   )
+}
+
+AudioControls.propTypes = {
+  visible: PropTypes.bool.isRequired,
+  speed: PropTypes.number.isRequired,
+  setSpeed: PropTypes.func.isRequired
 }

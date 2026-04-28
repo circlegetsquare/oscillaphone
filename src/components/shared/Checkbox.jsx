@@ -1,4 +1,4 @@
-import React from 'react'
+import PropTypes from 'prop-types'
 
 const checkboxStyles = {
   marginRight: '8px',
@@ -30,7 +30,6 @@ export default function Checkbox({
   label,
   checked,
   onChange,
-  style = {},
   checkboxStyle = {},
   labelStyle = {}
 }) {
@@ -49,4 +48,12 @@ export default function Checkbox({
       {label}
     </label>
   )
+}
+
+Checkbox.propTypes = {
+  label: PropTypes.string,
+  checked: PropTypes.bool.isRequired,
+  onChange: PropTypes.func.isRequired,
+  checkboxStyle: PropTypes.object,
+  labelStyle: PropTypes.object
 }

@@ -119,7 +119,7 @@ export const cleanupAudio = () => {
           node.stop();
         }
         node.disconnect();
-      } catch (e) {
+      } catch {
         // Ignore cleanup errors
       }
     });
@@ -251,8 +251,8 @@ const cleanupAudioNodes = (nodes) => {
     try {
       node.disconnect();
       activeNodes.delete(node);
-    } catch (e) {
-      console.warn('Error cleaning up audio node:', e);
+    } catch {
+      console.warn('Error cleaning up audio node');
     }
   });
 };

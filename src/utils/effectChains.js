@@ -204,9 +204,9 @@ class EffectChain {
       // — Tremolo —
       // Clean up any previous LFO from a prior sound
       if (this.currentLFO) {
-        try { this.currentLFO.stop() } catch(e) { /* already stopped */ }
-        try { this.currentLFO.disconnect() } catch(e) { /* already disconnected */ }
-        try { n.tremoloDepth.disconnect() } catch(e) { /* already disconnected */ }
+        try { this.currentLFO.stop() } catch { /* already stopped */ }
+        try { this.currentLFO.disconnect() } catch { /* already disconnected */ }
+        try { n.tremoloDepth.disconnect() } catch { /* already disconnected */ }
         this.currentLFO = null
       }
 
@@ -325,15 +325,15 @@ class EffectChain {
 
     // Stop and disconnect the per-sound LFO
     if (this.currentLFO) {
-      try { this.currentLFO.stop() } catch(e) { /* already stopped */ }
-      try { this.currentLFO.disconnect() } catch(e) { /* already disconnected */ }
-      try { this.nodes.tremoloDepth.disconnect() } catch(e) { /* already disconnected */ }
+      try { this.currentLFO.stop() } catch { /* already stopped */ }
+      try { this.currentLFO.disconnect() } catch { /* already disconnected */ }
+      try { this.nodes.tremoloDepth.disconnect() } catch { /* already disconnected */ }
       this.currentLFO = null
     }
 
     // Disconnect output from destination so the next use gets a clean connection
     if (this.nodes.output) {
-      try { this.nodes.output.disconnect() } catch(e) { /* already disconnected */ }
+      try { this.nodes.output.disconnect() } catch { /* already disconnected */ }
     }
 
     this.reset()
@@ -388,7 +388,7 @@ class EffectChain {
   cleanup() {
     try {
       this.connections.forEach(({ from, to }) => {
-        try { if (from && to) from.disconnect(to) } catch(e) { /* already broken */ }
+        try { if (from && to) from.disconnect(to) } catch { /* already broken */ }
       })
 
       const pool = getAudioPool(this.audioContext)
