@@ -329,8 +329,8 @@ const createOptimizedBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, 
   oscillator.stop(currentTime + duration);
 
   // Schedule cleanup — extend timeout to cover reverb/delay tails
-  const reverbTailTime = settings.reverb.enabled ? 2.0 : 0;
-  const delayTailTime = settings.delay.enabled ? settings.delay.time * 4 : 0;
+  const reverbTailTime = reverb.enabled ? 2.0 : 0;
+  const delayTailTime = delay.enabled ? delay.time * 4 : 0;
   const tailTime = Math.max(reverbTailTime, delayTailTime);
   setTimeout(() => {
     chainPool.releaseChain(effectChain);
