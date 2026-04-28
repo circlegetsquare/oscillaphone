@@ -139,3 +139,37 @@ Wall collision sounds and ball-collision sounds have completely independent sett
 - **Stale closures**: Always read settings inside long-lived closures via `*Ref.current`, never capture state directly
 - **Audio node reuse**: Oscillators cannot be restarted after `.stop()` — don't pool them
 - **Ticker cleanup**: GSAP tickers added in `useEffect` must be removed in the cleanup return; use `addTicker`/`removeTicker` from `useAnimationState`
+
+---
+
+## Project Status
+
+### Completed Refactors (as of April 2026)
+All P1–P3 work is done. The codebase is clean: 0 ESLint errors, 0 warnings.
+
+- **P1**: Fixed oversample setters, interval ID leak, import scoping, removed stubs
+- **P2**: EffectChain pool fully wired; `createOptimizedBeep` is the sole playback path; dual-state collapse (`sound.js` 700→453 lines); oscillator pool pre-allocation removed
+- **P3-A**: Deleted dead files (old `BouncingCircles.jsx` monolith, `AnimatedHero`, `NavBar`, `ScrollSection`, `MainLayout`, `animations.js`, `GlobalVolumeControl.jsx`, empty `contexts/`)
+- **P3-B**: Pure HSL color conversion, `colorCache` size cap, `generateGradient` deduplication
+- **P3-C**: PropTypes on every component, removed all `import React`, 225 lint errors → 0
+
+### Pending Work (P4)
+- **P4-20**: Ball count cap (prevent unbounded spawning)
+- **P4-21**: Collapsible effect sections + overflow scroll on controls panel
+- **P4-22 through P4-29**: Additional UX/feature items (details TBD)
+
+---
+
+## Hard-Won Bug History
+
+### Bug: Collision loop dies after first collision
+- **Symptom**: After the very first ball-wall or ball-ball collision, no further collisions are detected or sounds play.
+- **Root cause**: `createOptimizedBeep`'s cleanup `setTimeout` referenced `settings.reverb.enabled` and `settings.delay.enabled` — stale names from a deleted predecessor function. This threw a `ReferenceError` which propagated up through `playCollisionBeep` → `collisionEvents.forEach` → `handleCollisions`, preventing `requestAnimationFrame(handleCollisions)` from re-queuing.
+- **Fix**: Use the already-destructured locals `reverb.enabled` and `delay.enabled` instead.
+- **Lesson**: A `ReferenceError` anywhere in the rAF callback chain silently kills the loop — always check that variable names match current scope after refactors.
+
+### Bug: Audio controls (wall/circle settings) have no effect
+- **Symptom**: Changing waveform, volume, effects etc. in the control panel has no audible effect.
+- **Root cause**: `handlePointerDown` (via `useCallback`) and the rAF collision loop (via `useEffect`) both captured `wallSettings`/`circleSettings` at closure-creation time. The deps arrays didn't include those values, so closures always saw the initial defaults.
+- **Fix**: Added `wallSettingsRef` and `circleSettingsRef` — refs that mirror state via a sync `useEffect`. All long-lived closures read `ref.current` instead of the captured state value.
+- **Lesson**: Any state used inside a long-lived closure (`useCallback` without full deps, rAF loop, GSAP ticker) must be accessed via a ref, not captured directly.
