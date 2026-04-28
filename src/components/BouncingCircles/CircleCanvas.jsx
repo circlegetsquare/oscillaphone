@@ -117,6 +117,12 @@ const Circle = React.memo(({ id, state, onRef }) => {
  */
 export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) {
   const { wallSettings, circleSettings } = useAudio()
+  // Refs so ticker functions and rAF loops always read the latest settings
+  // without needing to be recreated on every state change.
+  const wallSettingsRef = useRef(wallSettings)
+  const circleSettingsRef = useRef(circleSettings)
+  useEffect(() => { wallSettingsRef.current = wallSettings }, [wallSettings])
+  useEffect(() => { circleSettingsRef.current = circleSettings }, [circleSettings])
   const containerRef = useRef(null)
   const circleRefs = useRef(new Map())
   const squishAnimations = useRef(new Map())
@@ -668,7 +674,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           if (shouldPlaySound) {
             const pan = calculatePan(updatedState.x, bounds.width);
             const velocity = hitLeftRight ? Math.abs(updatedState.vx) : Math.abs(updatedState.vy);
-            playWallCollisionBeep(pan, velocity, wallSettings);
+            playWallCollisionBeep(pan, velocity, wallSettingsRef.current);
           }
         }
         
@@ -746,7 +752,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
             const dvx = state2.vx - state1.vx;
             const dvy = state2.vy - state1.vy;
             const relativeVelocity = Math.sqrt(dvx * dvx + dvy * dvy);
-            playCollisionBeep(pan, relativeVelocity, circleSettings);
+            playCollisionBeep(pan, relativeVelocity, circleSettingsRef.current);
 
             // Update the last collision time
             lastCollisionTimes.current.set(pairKey, currentTime);
