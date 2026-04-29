@@ -70,10 +70,8 @@ describe('resolveCollision', () => {
   it('conserves total momentum in x direction', () => {
     const c1 = makeCircle(0, 0, 4, 0)
     const c2 = makeCircle(30, 0, -2, 0)
-    const totalBefore = c1.vx + c2.vx
     resolveCollision(c1, c2)
-    // With equal masses, restitution 0.9: total momentum changes by attenuation
-    // Just verify velocities changed, not stuck
+    // With equal masses, restitution 0.9: velocities should have changed
     expect(c1.vx).not.toBe(4)
   })
 

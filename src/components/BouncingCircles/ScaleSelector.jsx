@@ -10,9 +10,10 @@ export default function ScaleSelector() {
   return (
     <div style={{ marginBottom: '6px' }}>
       <div style={{
-        display: 'flex',
+        display: 'grid',
+        gridTemplateColumns: 'repeat(3, auto)',
+        justifyContent: 'start',
         gap: '8px',
-        flexWrap: 'wrap'
       }}>
         {AVAILABLE_SCALES.map(scale => (
           <Button
