@@ -31,26 +31,22 @@ The full controls panel shows ~40 controls at once. Wrap each effect (Delay, Rev
 - **Effort:** S
 - **Files:** `src/components/BouncingCircles/AudioControls/EffectControls.jsx`
 
-### 3. ~~Persist settings to `localStorage`~~ ✅ Done
-
-### 4. Expose tremolo waveform shape in the UI
+### 3. Expose tremolo waveform shape in the UI
 The tremolo LFO shape (`sine`, `square`, etc.) is wired in `effectChains.js` but there's no action type, action creator, or UI control for it. Backend is ready — just needs wiring.
 - **Effort:** XS–S
-- **Files:** `src/context/AudioContext.jsx`, `src/components/BouncingCircles/AudioControls/EffectControls.jsx`
+- **Files:** `src/context/AudioContext.tsx`, `src/components/BouncingCircles/AudioControls/EffectControls.jsx`
 
-### 5. Audio settings preset system
+### 4. Audio settings preset system
 Allow naming and saving the current audio state as a named preset in `localStorage`, with a preset picker in the UI.
 - **Effort:** M
-- **Files:** `src/context/AudioContext.jsx`, new UI component
+- **Files:** `src/context/AudioContext.tsx`, new UI component
 
-### 6. ~~Accessibility: keyboard support + ARIA~~ ✅ Done
-
-### 7. Custom favicon and meta tags
+### 5. Custom favicon and meta tags
 Ships with the default Vite favicon and no `<meta name="description">`. Add a custom favicon and Open Graph tags.
 - **Effort:** XS
 - **Files:** `index.html`
 
-### 8. Continue TypeScript migration
+### 6. Continue TypeScript migration
 `AudioContext.tsx` and `sound.ts` are typed with `strict: true`. Remaining JS components (`CircleCanvas.jsx`, shared components, hooks, utils) can be migrated incrementally. Start with `physics.js` and `spatialGrid.js` — pure functions with no DOM deps, easy to type. Then hooks, then components.
 - **Effort:** M per layer (hooks: S, components: M, full: L)
 - **Files:** All remaining `.js`/`.jsx` files
