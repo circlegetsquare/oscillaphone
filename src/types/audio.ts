@@ -54,38 +54,10 @@ export interface AudioState {
 }
 
 // ─── Reducer action union ─────────────────────────────────────────────────────
-
-type NumericPayloadAction =
-  | 'SET_GLOBAL_VOLUME'
-  | 'SET_WALL_DURATION' | 'SET_WALL_DETUNE' | 'SET_WALL_VOLUME'
-  | 'SET_WALL_DELAY_TIME' | 'SET_WALL_DELAY_FEEDBACK' | 'SET_WALL_DELAY_MIX'
-  | 'SET_WALL_REVERB_ROOM_SIZE' | 'SET_WALL_REVERB_DAMPING' | 'SET_WALL_REVERB_MIX'
-  | 'SET_WALL_DISTORTION_AMOUNT' | 'SET_WALL_DISTORTION_MIX'
-  | 'SET_WALL_TREMOLO_RATE' | 'SET_WALL_TREMOLO_DEPTH' | 'SET_WALL_TREMOLO_MIX'
-  | 'SET_CIRCLE_DURATION' | 'SET_CIRCLE_DETUNE' | 'SET_CIRCLE_VOLUME'
-  | 'SET_CIRCLE_DELAY_TIME' | 'SET_CIRCLE_DELAY_FEEDBACK' | 'SET_CIRCLE_DELAY_MIX'
-  | 'SET_CIRCLE_REVERB_ROOM_SIZE' | 'SET_CIRCLE_REVERB_DAMPING' | 'SET_CIRCLE_REVERB_MIX'
-  | 'SET_CIRCLE_DISTORTION_AMOUNT' | 'SET_CIRCLE_DISTORTION_MIX'
-  | 'SET_CIRCLE_TREMOLO_RATE' | 'SET_CIRCLE_TREMOLO_DEPTH' | 'SET_CIRCLE_TREMOLO_MIX'
-
-type BooleanPayloadAction =
-  | 'SET_WALL_DELAY_ENABLED' | 'SET_WALL_REVERB_ENABLED'
-  | 'SET_WALL_DISTORTION_ENABLED' | 'SET_WALL_TREMOLO_ENABLED'
-  | 'SET_CIRCLE_DELAY_ENABLED' | 'SET_CIRCLE_REVERB_ENABLED'
-  | 'SET_CIRCLE_DISTORTION_ENABLED' | 'SET_CIRCLE_TREMOLO_ENABLED'
-
-type StringPayloadAction = 'SET_SCALE'
-
-type WaveformPayloadAction = 'SET_WALL_WAVEFORM' | 'SET_CIRCLE_WAVEFORM'
-
-type OversamplePayloadAction =
-  | 'SET_WALL_DISTORTION_OVERSAMPLE'
-  | 'SET_CIRCLE_DISTORTION_OVERSAMPLE'
+//
+// A single SET action carries a path array + value, eliminating the need for
+// 30+ per-field action types. RESET_ALL_CONTROLS restores the full initialState.
 
 export type AudioAction =
+  | { type: 'SET'; path: string[]; value: unknown }
   | { type: 'RESET_ALL_CONTROLS' }
-  | { type: NumericPayloadAction; payload: number }
-  | { type: BooleanPayloadAction; payload: boolean }
-  | { type: StringPayloadAction; payload: string }
-  | { type: WaveformPayloadAction; payload: OscillatorType }
-  | { type: OversamplePayloadAction; payload: OversampleType }

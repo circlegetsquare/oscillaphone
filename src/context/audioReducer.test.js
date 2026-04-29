@@ -13,165 +13,165 @@ vi.mock('../utils/sound', () => ({
 
 import { audioReducer, initialState, ActionTypes } from './AudioContext'
 
+// Shorthand: dispatch a SET action
+const set = (path, value) => ({ type: ActionTypes.SET, path, value })
+
 describe('audioReducer', () => {
-  describe('SET_SCALE', () => {
+  describe('SET currentScale', () => {
     it('updates currentScale', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_SCALE, payload: 'A_MINOR' })
+      const state = audioReducer(initialState, set(['currentScale'], 'A_MINOR'))
       expect(state.currentScale).toBe('A_MINOR')
     })
 
     it('does not mutate other state', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_SCALE, payload: 'A_MINOR' })
+      const state = audioReducer(initialState, set(['currentScale'], 'A_MINOR'))
       expect(state.globalVolume).toBe(initialState.globalVolume)
       expect(state.wallSettings).toBe(initialState.wallSettings)
     })
   })
 
-  describe('SET_GLOBAL_VOLUME', () => {
+  describe('SET globalVolume', () => {
     it('updates globalVolume', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_GLOBAL_VOLUME, payload: 0.5 })
+      const state = audioReducer(initialState, set(['globalVolume'], 0.5))
       expect(state.globalVolume).toBe(0.5)
     })
   })
 
   describe('wall sound settings', () => {
-    it('SET_WALL_WAVEFORM updates wallSettings.waveform', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_WAVEFORM, payload: 'square' })
+    it('updates wallSettings.waveform without touching circleSettings', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'waveform'], 'square'))
       expect(state.wallSettings.waveform).toBe('square')
       expect(state.circleSettings.waveform).toBe(initialState.circleSettings.waveform)
     })
 
-    it('SET_WALL_VOLUME updates wallSettings.volume', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_VOLUME, payload: 0.8 })
+    it('updates wallSettings.volume', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'volume'], 0.8))
       expect(state.wallSettings.volume).toBe(0.8)
     })
 
-    it('SET_WALL_DURATION updates wallSettings.duration', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_DURATION, payload: 0.5 })
+    it('updates wallSettings.duration', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'duration'], 0.5))
       expect(state.wallSettings.duration).toBe(0.5)
     })
 
-    it('SET_WALL_DETUNE updates wallSettings.detune', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_DETUNE, payload: 100 })
+    it('updates wallSettings.detune', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'detune'], 100))
       expect(state.wallSettings.detune).toBe(100)
     })
   })
 
   describe('wall delay settings', () => {
-    it('SET_WALL_DELAY_ENABLED enables delay', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_DELAY_ENABLED, payload: true })
+    it('enables delay', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'delay', 'enabled'], true))
       expect(state.wallSettings.delay.enabled).toBe(true)
     })
 
-    it('SET_WALL_DELAY_TIME updates delay time', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_DELAY_TIME, payload: 0.6 })
+    it('updates delay time', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'delay', 'time'], 0.6))
       expect(state.wallSettings.delay.time).toBe(0.6)
     })
 
-    it('SET_WALL_DELAY_FEEDBACK updates delay feedback', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_DELAY_FEEDBACK, payload: 0.7 })
+    it('updates delay feedback', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'delay', 'feedback'], 0.7))
       expect(state.wallSettings.delay.feedback).toBe(0.7)
     })
 
-    it('SET_WALL_DELAY_MIX updates delay mix', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_DELAY_MIX, payload: 0.4 })
+    it('updates delay mix', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'delay', 'mix'], 0.4))
       expect(state.wallSettings.delay.mix).toBe(0.4)
     })
   })
 
   describe('wall reverb settings', () => {
-    it('SET_WALL_REVERB_ENABLED enables reverb', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_REVERB_ENABLED, payload: true })
+    it('enables reverb', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'reverb', 'enabled'], true))
       expect(state.wallSettings.reverb.enabled).toBe(true)
     })
 
-    it('SET_WALL_REVERB_ROOM_SIZE updates room size', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_REVERB_ROOM_SIZE, payload: 0.9 })
+    it('updates room size', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'reverb', 'roomSize'], 0.9))
       expect(state.wallSettings.reverb.roomSize).toBe(0.9)
     })
   })
 
   describe('wall distortion settings', () => {
-    it('SET_WALL_DISTORTION_ENABLED enables distortion', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_DISTORTION_ENABLED, payload: true })
+    it('enables distortion', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'distortion', 'enabled'], true))
       expect(state.wallSettings.distortion.enabled).toBe(true)
     })
 
-    it('SET_WALL_DISTORTION_AMOUNT updates amount', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_DISTORTION_AMOUNT, payload: 0.8 })
+    it('updates amount', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'distortion', 'amount'], 0.8))
       expect(state.wallSettings.distortion.amount).toBe(0.8)
     })
   })
 
   describe('wall tremolo settings', () => {
-    it('SET_WALL_TREMOLO_ENABLED enables tremolo', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_TREMOLO_ENABLED, payload: true })
+    it('enables tremolo', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'tremolo', 'enabled'], true))
       expect(state.wallSettings.tremolo.enabled).toBe(true)
     })
 
-    it('SET_WALL_TREMOLO_RATE updates rate', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_WALL_TREMOLO_RATE, payload: 8.0 })
+    it('updates rate', () => {
+      const state = audioReducer(initialState, set(['wallSettings', 'tremolo', 'rate'], 8.0))
       expect(state.wallSettings.tremolo.rate).toBe(8.0)
     })
   })
 
   describe('circle sound settings', () => {
-    it('SET_CIRCLE_WAVEFORM updates circleSettings.waveform', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_CIRCLE_WAVEFORM, payload: 'triangle' })
+    it('updates circleSettings.waveform without touching wallSettings', () => {
+      const state = audioReducer(initialState, set(['circleSettings', 'waveform'], 'triangle'))
       expect(state.circleSettings.waveform).toBe('triangle')
       expect(state.wallSettings.waveform).toBe(initialState.wallSettings.waveform)
     })
 
-    it('SET_CIRCLE_VOLUME updates circleSettings.volume', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_CIRCLE_VOLUME, payload: 0.3 })
+    it('updates circleSettings.volume', () => {
+      const state = audioReducer(initialState, set(['circleSettings', 'volume'], 0.3))
       expect(state.circleSettings.volume).toBe(0.3)
     })
 
-    it('SET_CIRCLE_DELAY_ENABLED enables circle delay', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_CIRCLE_DELAY_ENABLED, payload: true })
+    it('enables circle delay without touching wall delay', () => {
+      const state = audioReducer(initialState, set(['circleSettings', 'delay', 'enabled'], true))
       expect(state.circleSettings.delay.enabled).toBe(true)
       expect(state.wallSettings.delay.enabled).toBe(initialState.wallSettings.delay.enabled)
     })
 
-    it('SET_CIRCLE_REVERB_ENABLED enables circle reverb', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_CIRCLE_REVERB_ENABLED, payload: true })
+    it('enables circle reverb', () => {
+      const state = audioReducer(initialState, set(['circleSettings', 'reverb', 'enabled'], true))
       expect(state.circleSettings.reverb.enabled).toBe(true)
     })
 
-    it('SET_CIRCLE_DISTORTION_AMOUNT updates circle distortion amount', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_CIRCLE_DISTORTION_AMOUNT, payload: 0.6 })
+    it('updates circle distortion amount', () => {
+      const state = audioReducer(initialState, set(['circleSettings', 'distortion', 'amount'], 0.6))
       expect(state.circleSettings.distortion.amount).toBe(0.6)
     })
 
-    it('SET_CIRCLE_TREMOLO_DEPTH updates circle tremolo depth', () => {
-      const state = audioReducer(initialState, { type: ActionTypes.SET_CIRCLE_TREMOLO_DEPTH, payload: 0.9 })
+    it('updates circle tremolo depth', () => {
+      const state = audioReducer(initialState, set(['circleSettings', 'tremolo', 'depth'], 0.9))
       expect(state.circleSettings.tremolo.depth).toBe(0.9)
     })
   })
 
   describe('RESET_ALL_CONTROLS', () => {
     it('restores all settings to initial state', () => {
-      // Apply a bunch of mutations
-      let state = audioReducer(initialState, { type: ActionTypes.SET_WALL_WAVEFORM, payload: 'square' })
-      state = audioReducer(state, { type: ActionTypes.SET_CIRCLE_VOLUME, payload: 0.9 })
-      state = audioReducer(state, { type: ActionTypes.SET_WALL_DELAY_ENABLED, payload: true })
-      state = audioReducer(state, { type: ActionTypes.SET_GLOBAL_VOLUME, payload: 0.2 })
+      let state = audioReducer(initialState, set(['wallSettings', 'waveform'], 'square'))
+      state = audioReducer(state, set(['circleSettings', 'volume'], 0.9))
+      state = audioReducer(state, set(['wallSettings', 'delay', 'enabled'], true))
+      state = audioReducer(state, set(['globalVolume'], 0.2))
 
-      // Reset
       const reset = audioReducer(state, { type: ActionTypes.RESET_ALL_CONTROLS })
 
       expect(reset.wallSettings).toEqual(initialState.wallSettings)
       expect(reset.circleSettings).toEqual(initialState.circleSettings)
     })
 
-    it('preserves scale and global volume after reset', () => {
-      // RESET_ALL_CONTROLS resets sound settings but keeps scale/volume
-      let state = audioReducer(initialState, { type: ActionTypes.SET_SCALE, payload: 'A_MINOR' })
-      state = audioReducer(state, { type: ActionTypes.SET_GLOBAL_VOLUME, payload: 0.5 })
+    it('resets wallSettings and circleSettings to initial values', () => {
+      let state = audioReducer(initialState, set(['currentScale'], 'A_MINOR'))
+      state = audioReducer(state, set(['globalVolume'], 0.5))
       const reset = audioReducer(state, { type: ActionTypes.RESET_ALL_CONTROLS })
 
-      // Confirm wallSettings/circleSettings are reset
       expect(reset.wallSettings).toEqual(initialState.wallSettings)
+      expect(reset.circleSettings).toEqual(initialState.circleSettings)
     })
   })
 
@@ -182,3 +182,4 @@ describe('audioReducer', () => {
     })
   })
 })
+
