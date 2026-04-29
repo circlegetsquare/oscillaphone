@@ -1,20 +1,22 @@
 // Create an audio context
-let audioContext;
+import type { SoundSettings } from '../types/audio'
+
+let audioContext: AudioContext | null = null;
 
 // Re-enable audio optimization imports incrementally
 import { getAudioPool, destroyAudioPool, getAudioPoolStats } from './audioPool'
 import { getEffectChainPool, destroyEffectChainPool, getEffectChainStats } from './effectChains'
 
 // Global audio processing nodes
-let globalCompressor;
-let globalLimiter;
-let globalMaster;
+let globalCompressor: DynamicsCompressorNode | null = null;
+let globalLimiter: DynamicsCompressorNode | null = null;
+let globalMaster: GainNode | null = null;
 
 // Keep track of active audio nodes for cleanup
-let activeNodes = new Set();
+let activeNodes: Set<AudioNode> = new Set();
 
 // ID for the periodic cleanup interval so it can be cancelled
-let cleanupIntervalId = null;
+let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
 
 // Volume scaling constants
 const VOLUME_LIMITS = {
@@ -29,7 +31,7 @@ const VOLUME_LIMITS = {
  * @param {number} velocity - The velocity to map
  * @returns {number} Mapped volume value
  */
-const mapVelocityToVolume = (velocity, maxVolume) => {
+export const mapVelocityToVolume = (velocity: number, maxVolume: number): number => {
   // Get the absolute velocity
   const absVelocity = Math.abs(velocity);
   
@@ -51,6 +53,7 @@ const mapVelocityToVolume = (velocity, maxVolume) => {
 
 // Initialize global audio processing nodes
 const initGlobalProcessing = () => {
+  if (!audioContext) return
   if (!globalCompressor) {
     // Create compressor for dynamic range control
     globalCompressor = audioContext.createDynamicsCompressor();
@@ -87,7 +90,7 @@ const initGlobalProcessing = () => {
 // Initialize the audio context
 export const initAudioContext = () => {
   if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    audioContext = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext || AudioContext)();
     initGlobalProcessing();
 
     // Initialize audio pools for memory optimization
@@ -115,8 +118,9 @@ export const cleanupAudio = () => {
     // Clean up all active nodes
     activeNodes.forEach(node => {
       try {
-        if (node.stop && typeof node.stop === 'function') {
-          node.stop();
+        const stoppable = node as AudioNode & { stop?: () => void }
+        if (typeof stoppable.stop === 'function') {
+          stoppable.stop();
         }
         node.disconnect();
       } catch {
@@ -254,9 +258,20 @@ export const WAVEFORMS = [
  * Octave 4   → CIRCLE_HIGH
  * Octave 5+  → CIRCLE_HIGHER
  */
-const buildNoteGroups = (scaleId) => {
-  const notes = SCALES[scaleId]?.notes ?? {}
-  const groups = { WALL_LOW: [], WALL_MID: [], CIRCLE_HIGH: [], CIRCLE_HIGHER: [] }
+type NoteGroups = {
+  WALL_LOW: string[]
+  WALL_MID: string[]
+  CIRCLE_HIGH: string[]
+  CIRCLE_HIGHER: string[]
+}
+
+// SCALES keyed by string for dynamic lookups
+type ScaleMap = typeof SCALES & Record<string, { name: string; notes: Record<string, number> } | undefined>
+const SCALES_MAP = SCALES as ScaleMap
+
+const buildNoteGroups = (scaleId: string): NoteGroups => {
+  const notes = SCALES_MAP[scaleId]?.notes ?? {}
+  const groups: NoteGroups = { WALL_LOW: [], WALL_MID: [], CIRCLE_HIGH: [], CIRCLE_HIGHER: [] }
   for (const name of Object.keys(notes)) {
     const octave = parseInt(name.slice(-1), 10)
     if (octave === 2)      groups.WALL_LOW.push(name)
@@ -268,22 +283,23 @@ const buildNoteGroups = (scaleId) => {
 }
 
 // Cache built groups per scale so we don't rebuild every note
-const noteGroupCache = new Map()
+const noteGroupCache = new Map<string, NoteGroups>()
 
 // Current musical scale (used by getRandomNote and playBeep)
 let currentScale = 'C_MAJOR';
 
-const getRandomNote = (group) => {
+const getRandomNote = (group: keyof NoteGroups): number => {
   if (!noteGroupCache.has(currentScale)) {
     noteGroupCache.set(currentScale, buildNoteGroups(currentScale))
   }
-  const groups = noteGroupCache.get(currentScale)
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const groups = noteGroupCache.get(currentScale)!
   const noteNames = groups[group] ?? groups.WALL_MID
   const randomNoteName = noteNames[Math.floor(Math.random() * noteNames.length)]
-  return SCALES[currentScale].notes[randomNoteName]
+  return (SCALES_MAP[currentScale]?.notes[randomNoteName] ?? 261.63)
 };
 
-const cleanupAudioNodes = (nodes) => {
+const cleanupAudioNodes = (nodes: Set<AudioNode>): void => {
   nodes.forEach(node => {
     try {
       node.disconnect();
@@ -295,17 +311,19 @@ const cleanupAudioNodes = (nodes) => {
 };
 
 // soundSettings is the wallSettings or circleSettings object from React AudioContext state.
-const createOptimizedBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundSettings) => {
+const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, pan = 0, soundSettings?: SoundSettings): void => {
   initAudioContext();
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  const ctx = audioContext!  // initAudioContext() guarantees non-null
 
-  const pool = getAudioPool(audioContext);
-  const chainPool = getEffectChainPool(audioContext);
-  const oscillator = audioContext.createOscillator();
+  const pool = getAudioPool(ctx);
+  const chainPool = getEffectChainPool(ctx);
+  const oscillator = ctx.createOscillator();
 
   // Configure oscillator from React state
   oscillator.type = soundSettings?.waveform ?? 'sine';
-  oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
-  oscillator.detune.setValueAtTime(soundSettings?.detune ?? 0, audioContext.currentTime);
+  oscillator.frequency.setValueAtTime(frequency, ctx.currentTime);
+  oscillator.detune.setValueAtTime(soundSettings?.detune ?? 0, ctx.currentTime);
 
   const effectChain = chainPool.getChain();
 
@@ -316,9 +334,9 @@ const createOptimizedBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, 
 
     oscillator.connect(gainNode);
     gainNode.connect(panNode);
-    panNode.connect(globalCompressor || audioContext.destination);
+    panNode.connect(globalCompressor || ctx.destination);
 
-    const currentTime = audioContext.currentTime;
+    const currentTime = ctx.currentTime;
     gainNode.gain.setValueAtTime(0, currentTime);
     gainNode.gain.linearRampToValueAtTime(volume, currentTime + 0.01);
     gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
@@ -358,10 +376,10 @@ const createOptimizedBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, 
 
   // Connect oscillator to effect chain
   effectChain.connectOscillator(oscillator);
-  effectChain.connectToDestination(globalCompressor || audioContext.destination);
+  effectChain.connectToDestination(globalCompressor || ctx.destination);
 
   // Start and stop oscillator
-  const currentTime = audioContext.currentTime;
+  const currentTime = ctx.currentTime;
   oscillator.start(currentTime);
   oscillator.stop(currentTime + duration);
 
@@ -377,9 +395,8 @@ const createOptimizedBeep = (frequency, duration = 0.15, volume = 0.3, pan = 0, 
 // REMOVED: createOriginalBeep — no longer needed; createOptimizedBeep is the only path.
 // Left as a tombstone comment so git blame is informative.
 
-const _tombstone = (frequency, duration = 0.15, volume = 0.3, pan = 0, soundType = 'circle') => {
+const _tombstone = (_frequency: unknown, _duration = 0.15, _volume = 0.3, _pan = 0, _soundType = 'circle') => {
   // This function has been removed. See createOptimizedBeep.
-  void frequency; void duration; void volume; void pan; void soundType;
   throw new Error('createOriginalBeep has been removed');
 };
 void _tombstone;
@@ -387,7 +404,7 @@ void _tombstone;
 const createBeep = createOptimizedBeep;
 
 // Convert x position to pan value (-1 to 1)
-export const calculatePan = (x, width) => {
+export const calculatePan = (x: number, width: number): number => {
   return (x / width) * 2 - 1;
 };
 
@@ -412,7 +429,7 @@ export const playBeep = (pan = 0) => {
 
 // Play a note for circle-to-circle collisions.
 // soundSettings should be the circleSettings object from React AudioContext state.
-export const playCollisionBeep = (pan = 0, velocity = 0, soundSettings) => {
+export const playCollisionBeep = (pan = 0, velocity = 0, soundSettings?: SoundSettings): void => {
   const group = Math.random() < 0.5 ? 'CIRCLE_HIGH' : 'CIRCLE_HIGHER';
   const note = getRandomNote(group);
   const maxVolume = soundSettings?.volume ?? 0.15;
@@ -422,7 +439,7 @@ export const playCollisionBeep = (pan = 0, velocity = 0, soundSettings) => {
 
 // Play a note for wall collision events.
 // soundSettings should be the wallSettings object from React AudioContext state.
-export const playWallCollisionBeep = (pan = 0, velocity = 0, soundSettings) => {
+export const playWallCollisionBeep = (pan = 0, velocity = 0, soundSettings?: SoundSettings): void => {
   const group = Math.random() < 0.5 ? 'WALL_LOW' : 'WALL_MID';
   const note = getRandomNote(group);
   const maxVolume = soundSettings?.volume ?? 0.15;
@@ -431,17 +448,17 @@ export const playWallCollisionBeep = (pan = 0, velocity = 0, soundSettings) => {
 };
 
 // Export scale setter — still needed because getRandomNote and playBeep read currentScale
-export const setScale = (scale) => {
-  if (SCALES[scale]) {
+export const setScale = (scale: string): void => {
+  if (SCALES_MAP[scale]) {
     currentScale = scale;
   }
 };
 
 // Global master volume control — directly manipulates the audio graph node
-export const setGlobalVolume = (volume) => {
+export const setGlobalVolume = (volume: number): void => {
   if (globalMaster) {
     const clampedVolume = Math.max(0, Math.min(1.0, volume));
-    globalMaster.gain.setValueAtTime(clampedVolume, audioContext.currentTime);
+    globalMaster.gain.setValueAtTime(clampedVolume, audioContext!.currentTime);
   }
 };
 

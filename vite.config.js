@@ -10,7 +10,7 @@ export default defineConfig({
     include: ['src/**/*.test.js'],
     coverage: {
       provider: 'v8',
-      include: ['src/utils/physics.js', 'src/utils/spatialGrid.js', 'src/context/AudioContext.jsx'],
+      include: ['src/utils/physics.js', 'src/utils/spatialGrid.js', 'src/context/AudioContext.tsx'],
     },
   },
 })

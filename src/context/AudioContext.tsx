@@ -1,5 +1,4 @@
-import { createContext, useContext, useReducer, useEffect } from 'react'
-import PropTypes from 'prop-types'
+import { createContext, useContext, useReducer, useEffect, type Dispatch } from 'react'
 import {
   initAudioContext,
   setScale,
@@ -7,9 +6,10 @@ import {
   AVAILABLE_SCALES,
   WAVEFORMS
 } from '../utils/sound'
+import type { AudioState, AudioAction, SoundSettings, OversampleType } from '../types/audio'
 
 // Initial state for audio settings
-const initialState = {
+const initialState: AudioState = {
   currentScale: 'C_MAJOR',
   globalVolume: 1.0, // Global master volume
   
@@ -145,10 +145,10 @@ const ActionTypes = {
 
   // Reset actions
   RESET_ALL_CONTROLS: 'RESET_ALL_CONTROLS'
-}
+} as const
 
 // Reducer function
-function audioReducer(state, action) {
+function audioReducer(state: AudioState, action: AudioAction): AudioState {
   switch (action.type) {
     case ActionTypes.SET_SCALE:
       return {
@@ -636,7 +636,7 @@ const STORAGE_KEY = 'oscillaphone_audio_settings'
  * Load persisted state from localStorage, deep-merged with initialState so any
  * keys added in future code are always present even if the stored object is old.
  */
-function loadPersistedState() {
+function loadPersistedState(): AudioState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return initialState
@@ -665,11 +665,65 @@ function loadPersistedState() {
 // Exported for unit testing
 export { audioReducer, initialState, ActionTypes }
 
+// ─── Context value type ───────────────────────────────────────────────────────
+interface AudioContextValue {
+  currentScale: string
+  globalVolume: number
+  wallSettings: SoundSettings
+  circleSettings: SoundSettings
+  AVAILABLE_SCALES: Array<{ id: string; name: string }>
+  WAVEFORMS: Array<{ id: string; name: string }>
+  setCurrentScale: (scale: string) => void
+  setGlobalVolume: (volume: number) => void
+  setWallDuration: (v: number) => void
+  setWallDetune: (v: number) => void
+  setWallWaveform: (v: OscillatorType) => void
+  setWallVolume: (v: number) => void
+  setWallDelayEnabled: (v: boolean) => void
+  setWallDelayTime: (v: number) => void
+  setWallDelayFeedback: (v: number) => void
+  setWallDelayMix: (v: number) => void
+  setWallReverbEnabled: (v: boolean) => void
+  setWallReverbRoomSize: (v: number) => void
+  setWallReverbDamping: (v: number) => void
+  setWallReverbMix: (v: number) => void
+  setWallDistortionEnabled: (v: boolean) => void
+  setWallDistortionAmount: (v: number) => void
+  setWallDistortionOversample: (v: OversampleType) => void
+  setWallDistortionMix: (v: number) => void
+  setWallTremoloEnabled: (v: boolean) => void
+  setWallTremoloRate: (v: number) => void
+  setWallTremoloDepth: (v: number) => void
+  setWallTremoloMix: (v: number) => void
+  setCircleDuration: (v: number) => void
+  setCircleDetune: (v: number) => void
+  setCircleWaveform: (v: OscillatorType) => void
+  setCircleVolume: (v: number) => void
+  setCircleDelayEnabled: (v: boolean) => void
+  setCircleDelayTime: (v: number) => void
+  setCircleDelayFeedback: (v: number) => void
+  setCircleDelayMix: (v: number) => void
+  setCircleReverbEnabled: (v: boolean) => void
+  setCircleReverbRoomSize: (v: number) => void
+  setCircleReverbDamping: (v: number) => void
+  setCircleReverbMix: (v: number) => void
+  setCircleDistortionEnabled: (v: boolean) => void
+  setCircleDistortionAmount: (v: number) => void
+  setCircleDistortionOversample: (v: OversampleType) => void
+  setCircleDistortionMix: (v: number) => void
+  setCircleTremoloEnabled: (v: boolean) => void
+  setCircleTremoloRate: (v: number) => void
+  setCircleTremoloDepth: (v: number) => void
+  setCircleTremoloMix: (v: number) => void
+  resetAllControls: () => void
+  dispatch: Dispatch<AudioAction>
+}
+
 // Create context
-const AudioContext = createContext()
+const AudioContext = createContext<AudioContextValue | undefined>(undefined)
 
 // Provider component
-export function AudioProvider({ children }) {
+export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(audioReducer, undefined, loadPersistedState)
 
   // Persist state to localStorage on every change
@@ -694,173 +748,173 @@ export function AudioProvider({ children }) {
   useEffect(() => { setGlobalVolume(state.globalVolume) }, [state.globalVolume])
   
   // Action creators
-  const setCurrentScale = (scale) => {
+  const setCurrentScale = (scale: string) => {
     dispatch({ type: ActionTypes.SET_SCALE, payload: scale })
   }
   
-  const setGlobalVolumeValue = (volume) => {
+  const setGlobalVolumeValue = (volume: number) => {
     dispatch({ type: ActionTypes.SET_GLOBAL_VOLUME, payload: volume })
   }
   
   // Wall sound action creators
-  const setWallDurationValue = (duration) => {
+  const setWallDurationValue = (duration: number) => {
     dispatch({ type: ActionTypes.SET_WALL_DURATION, payload: duration })
   }
   
-  const setWallDetuneValue = (detune) => {
+  const setWallDetuneValue = (detune: number) => {
     dispatch({ type: ActionTypes.SET_WALL_DETUNE, payload: detune })
   }
   
-  const setWallWaveformValue = (waveform) => {
+  const setWallWaveformValue = (waveform: OscillatorType) => {
     dispatch({ type: ActionTypes.SET_WALL_WAVEFORM, payload: waveform })
   }
   
-  const setWallVolumeValue = (volume) => {
+  const setWallVolumeValue = (volume: number) => {
     dispatch({ type: ActionTypes.SET_WALL_VOLUME, payload: volume })
   }
   
-  const setWallDelayEnabledValue = (enabled) => {
+  const setWallDelayEnabledValue = (enabled: boolean) => {
     dispatch({ type: ActionTypes.SET_WALL_DELAY_ENABLED, payload: enabled })
   }
   
-  const setWallDelayTimeValue = (time) => {
+  const setWallDelayTimeValue = (time: number) => {
     dispatch({ type: ActionTypes.SET_WALL_DELAY_TIME, payload: time })
   }
   
-  const setWallDelayFeedbackValue = (feedback) => {
+  const setWallDelayFeedbackValue = (feedback: number) => {
     dispatch({ type: ActionTypes.SET_WALL_DELAY_FEEDBACK, payload: feedback })
   }
   
-  const setWallDelayMixValue = (mix) => {
+  const setWallDelayMixValue = (mix: number) => {
     dispatch({ type: ActionTypes.SET_WALL_DELAY_MIX, payload: mix })
   }
   
-  const setWallReverbEnabledValue = (enabled) => {
+  const setWallReverbEnabledValue = (enabled: boolean) => {
     dispatch({ type: ActionTypes.SET_WALL_REVERB_ENABLED, payload: enabled })
   }
   
-  const setWallReverbRoomSizeValue = (roomSize) => {
+  const setWallReverbRoomSizeValue = (roomSize: number) => {
     dispatch({ type: ActionTypes.SET_WALL_REVERB_ROOM_SIZE, payload: roomSize })
   }
   
-  const setWallReverbDampingValue = (damping) => {
+  const setWallReverbDampingValue = (damping: number) => {
     dispatch({ type: ActionTypes.SET_WALL_REVERB_DAMPING, payload: damping })
   }
   
-  const setWallReverbMixValue = (mix) => {
+  const setWallReverbMixValue = (mix: number) => {
     dispatch({ type: ActionTypes.SET_WALL_REVERB_MIX, payload: mix })
   }
   
-  const setWallDistortionEnabledValue = (enabled) => {
+  const setWallDistortionEnabledValue = (enabled: boolean) => {
     dispatch({ type: ActionTypes.SET_WALL_DISTORTION_ENABLED, payload: enabled })
   }
   
-  const setWallDistortionAmountValue = (amount) => {
+  const setWallDistortionAmountValue = (amount: number) => {
     dispatch({ type: ActionTypes.SET_WALL_DISTORTION_AMOUNT, payload: amount })
   }
 
-  const setWallDistortionOversampleValue = (oversample) => {
+  const setWallDistortionOversampleValue = (oversample: OversampleType) => {
     dispatch({ type: ActionTypes.SET_WALL_DISTORTION_OVERSAMPLE, payload: oversample })
   }
   
-  const setWallDistortionMixValue = (mix) => {
+  const setWallDistortionMixValue = (mix: number) => {
     dispatch({ type: ActionTypes.SET_WALL_DISTORTION_MIX, payload: mix })
   }
   
-  const setWallTremoloEnabledValue = (enabled) => {
+  const setWallTremoloEnabledValue = (enabled: boolean) => {
     dispatch({ type: ActionTypes.SET_WALL_TREMOLO_ENABLED, payload: enabled })
   }
   
-  const setWallTremoloRateValue = (rate) => {
+  const setWallTremoloRateValue = (rate: number) => {
     dispatch({ type: ActionTypes.SET_WALL_TREMOLO_RATE, payload: rate })
   }
   
-  const setWallTremoloDepthValue = (depth) => {
+  const setWallTremoloDepthValue = (depth: number) => {
     dispatch({ type: ActionTypes.SET_WALL_TREMOLO_DEPTH, payload: depth })
   }
   
-  const setWallTremoloMixValue = (mix) => {
+  const setWallTremoloMixValue = (mix: number) => {
     dispatch({ type: ActionTypes.SET_WALL_TREMOLO_MIX, payload: mix })
   }
   
   // Circle sound action creators
-  const setCircleDurationValue = (duration) => {
+  const setCircleDurationValue = (duration: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DURATION, payload: duration })
   }
   
-  const setCircleDetuneValue = (detune) => {
+  const setCircleDetuneValue = (detune: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DETUNE, payload: detune })
   }
   
-  const setCircleWaveformValue = (waveform) => {
+  const setCircleWaveformValue = (waveform: OscillatorType) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_WAVEFORM, payload: waveform })
   }
   
-  const setCircleVolumeValue = (volume) => {
+  const setCircleVolumeValue = (volume: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_VOLUME, payload: volume })
   }
   
-  const setCircleDelayEnabledValue = (enabled) => {
+  const setCircleDelayEnabledValue = (enabled: boolean) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DELAY_ENABLED, payload: enabled })
   }
   
-  const setCircleDelayTimeValue = (time) => {
+  const setCircleDelayTimeValue = (time: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DELAY_TIME, payload: time })
   }
   
-  const setCircleDelayFeedbackValue = (feedback) => {
+  const setCircleDelayFeedbackValue = (feedback: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DELAY_FEEDBACK, payload: feedback })
   }
   
-  const setCircleDelayMixValue = (mix) => {
+  const setCircleDelayMixValue = (mix: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DELAY_MIX, payload: mix })
   }
   
-  const setCircleReverbEnabledValue = (enabled) => {
+  const setCircleReverbEnabledValue = (enabled: boolean) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_REVERB_ENABLED, payload: enabled })
   }
   
-  const setCircleReverbRoomSizeValue = (roomSize) => {
+  const setCircleReverbRoomSizeValue = (roomSize: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_REVERB_ROOM_SIZE, payload: roomSize })
   }
   
-  const setCircleReverbDampingValue = (damping) => {
+  const setCircleReverbDampingValue = (damping: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_REVERB_DAMPING, payload: damping })
   }
   
-  const setCircleReverbMixValue = (mix) => {
+  const setCircleReverbMixValue = (mix: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_REVERB_MIX, payload: mix })
   }
   
-  const setCircleDistortionEnabledValue = (enabled) => {
+  const setCircleDistortionEnabledValue = (enabled: boolean) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DISTORTION_ENABLED, payload: enabled })
   }
   
-  const setCircleDistortionAmountValue = (amount) => {
+  const setCircleDistortionAmountValue = (amount: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DISTORTION_AMOUNT, payload: amount })
   }
 
-  const setCircleDistortionOversampleValue = (oversample) => {
+  const setCircleDistortionOversampleValue = (oversample: OversampleType) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DISTORTION_OVERSAMPLE, payload: oversample })
   }
   
-  const setCircleDistortionMixValue = (mix) => {
+  const setCircleDistortionMixValue = (mix: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_DISTORTION_MIX, payload: mix })
   }
   
-  const setCircleTremoloEnabledValue = (enabled) => {
+  const setCircleTremoloEnabledValue = (enabled: boolean) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_TREMOLO_ENABLED, payload: enabled })
   }
   
-  const setCircleTremoloRateValue = (rate) => {
+  const setCircleTremoloRateValue = (rate: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_TREMOLO_RATE, payload: rate })
   }
   
-  const setCircleTremoloDepthValue = (depth) => {
+  const setCircleTremoloDepthValue = (depth: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_TREMOLO_DEPTH, payload: depth })
   }
   
-  const setCircleTremoloMixValue = (mix) => {
+  const setCircleTremoloMixValue = (mix: number) => {
     dispatch({ type: ActionTypes.SET_CIRCLE_TREMOLO_MIX, payload: mix })
   }
 
@@ -938,7 +992,10 @@ export function AudioProvider({ children }) {
     setCircleTremoloMix: setCircleTremoloMixValue,
 
     // Reset function
-    resetAllControls
+    resetAllControls,
+
+    // Raw dispatch — useful for one-off or future actions
+    dispatch,
   }
   
   return (
@@ -948,12 +1005,8 @@ export function AudioProvider({ children }) {
   )
 }
 
-AudioProvider.propTypes = {
-  children: PropTypes.node.isRequired
-}
-
 // Custom hook to use the audio context
-export function useAudio() {
+export function useAudio(): AudioContextValue {
   const context = useContext(AudioContext)
   if (context === undefined) {
     throw new Error('useAudio must be used within an AudioProvider')

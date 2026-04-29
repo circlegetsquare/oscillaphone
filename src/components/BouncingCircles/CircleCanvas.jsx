@@ -703,7 +703,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       e.preventDefault()
       if (!containerRef.current) return
       const { width, height } = containerRef.current.getBoundingClientRect()
-      spawnBallAt(width / 2, height / 2)
+      spawnBallAt(Math.random() * width, Math.random() * height)
     }
   }, [spawnBallAt])
 
