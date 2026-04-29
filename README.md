@@ -57,37 +57,41 @@ npm run dev        # http://localhost:5173/oscillaphone/
 
 ```
 src/
-├── App.jsx                         Entry point → BouncingCircles
+├── App.jsx                          Entry point → BouncingCircles
 ├── components/
 │   ├── BouncingCircles/
-│   │   ├── index.jsx               Shell: layout, controls toggle, speed
-│   │   ├── CircleCanvas.jsx        Physics loop, rendering, collision events
-│   │   ├── ScaleSelector.jsx       Musical scale picker
-│   │   └── AudioControls/          Per-type sound controls (wall + circle)
-│   └── shared/                     Button, Slider, Checkbox, ControlPanel
+│   │   ├── index.jsx                Shell: layout, controls toggle, speed
+│   │   ├── CircleCanvas.jsx         Physics loop, rendering, collision events
+│   │   ├── ScaleSelector.jsx        Musical scale picker
+│   │   └── AudioControls/           Per-type sound controls (wall + circle)
+│   └── shared/                      Button, Slider, Checkbox, ControlPanel
 ├── context/
-│   └── AudioContext.jsx            useReducer-based global audio state
+│   └── AudioContext.tsx             useReducer-based global audio state + localStorage
+├── types/
+│   └── audio.ts                     SoundSettings, AudioState, AudioAction types
 ├── hooks/
-│   ├── useAnimationState.js        GSAP timeline + ticker management
-│   ├── useCollisions.js            Circle physics state + collision detection
-│   ├── useColorPalette.js          Color generation + background gradient
-│   └── useGSAP.js                  Thin GSAP context wrapper
+│   ├── useAnimationState.js         GSAP timeline + ticker management
+│   ├── useCollisions.js             Circle physics state + collision detection
+│   ├── useColorPalette.js           Color generation + background gradient
+│   └── useGSAP.js                   Thin GSAP context wrapper
 └── utils/
-    ├── sound.js                    Web Audio API: init, note selection, playback
-    ├── effectChains.js             Pre-allocated EffectChain pool (8 chains)
-    ├── audioPool.js                Pre-allocated audio node pool
-    ├── physics.js                  Collision detection + elastic resolution
-    └── spatialGrid.js              Spatial hash grid for O(n) collision queries
+    ├── sound.ts                     Web Audio API: init, note selection, playback
+    ├── effectChains.js              Pre-allocated EffectChain pool (8 chains, ConvolverNode reverb)
+    ├── audioPool.js                 Pre-allocated audio node pool
+    ├── physics.js                   Collision detection + elastic resolution
+    └── spatialGrid.js               Spatial hash grid for O(n) collision queries
 ```
 
 **Audio signal graph** (per note):
 ```
-Oscillator → Tremolo LFO → Distortion (dry/wet) → Reverb (dry/wet)
-           → Tremolo mix → Delay (dry/wet) → StereoPanner
+Oscillator → Tremolo LFO → Distortion (dry/wet) → Reverb (ConvolverNode, dry/wet)
+           → Delay (dry/wet) → StereoPanner
            → [EffectChain output] → GlobalCompressor → Limiter → MasterGain → Destination
 ```
 
-**State management**: All audio parameters live in React state (`AudioContext`). `CircleCanvas` reads `wallSettings` / `circleSettings` via refs and passes them directly to `playWallCollisionBeep` / `playCollisionBeep` — no module-level variable duplication.
+**State management**: All audio parameters live in React state (`AudioContext`) and persist to `localStorage`. `CircleCanvas` reads `wallSettings` / `circleSettings` via refs and passes them directly to `playWallCollisionBeep` / `playCollisionBeep` — no module-level variable duplication.
+
+**Type system**: The audio core (`AudioContext.tsx`, `sound.ts`, `types/audio.ts`) is TypeScript with `strict: true`. The rest of the codebase is JavaScript with `PropTypes`; migration is ongoing.
 
 ---
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import PropTypes from 'prop-types'
 import WallControls from './WallControls'
 import CircleControls from './CircleControls'

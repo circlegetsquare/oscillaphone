@@ -1,72 +1,76 @@
 # Oscillaphone — Codebase Review
 
-*Reviewed April 2026 (second deep pass)*
+*Reviewed April 2026 (third deep pass)*
 
 ---
 
-## High-Level Summary
+## What changed since the second pass
 
-**Oscillaphone** is a browser-based interactive musical toy. Click anywhere on the screen to spawn a colorful ball; balls bounce around and play musical notes each time they hit a wall or each other. The experience is polished: the sounds are genuinely musical (notes drawn from a user-selectable scale), the physics feel good, and the visual squish/glow animations on collision give it tactile satisfaction.
+The second-pass review (early April 2026) drove three rounds of refactor work. Most of it landed:
 
-### What the app does
+- **TypeScript migration (partial)** — `src/utils/sound.ts`, `src/context/AudioContext.tsx`, and `src/types/audio.ts` are now typed with `strict: true`; `tsc --noEmit` is clean.
+- **Dual-state collapse** — every audio parameter now lives in React state and is passed as a `SoundSettings` argument into `playWallCollisionBeep` / `playCollisionBeep`. Only `currentScale` and the `globalMaster.gain` Web Audio param remain as module-level state in `sound.ts`.
+- **EffectChain fully wired** — reverb (now a `ConvolverNode` with a synthesized impulse-response, replacing the old comb-filter network), distortion, tremolo, and delay are all live in `createOptimizedBeep`. The "fallback to basic sound" branch only triggers when the 8-chain pool is exhausted.
+- **`createOriginalBeep` removed** — `createOptimizedBeep` is the sole playback path. A `_tombstone` arrow remains as a `git blame` marker (see [Code quality](#-code-quality) for the recommendation to remove it).
+- **Dead code purge** — the 1,801-line monolithic `BouncingCircles.jsx`, `AnimatedHero`, `NavBar`, `ScrollSection`, `MainLayout`, `animations.js`, `GlobalVolumeControl.jsx`, and the empty `contexts/` directory are gone.
+- **Pure-math HSL→RGBA**, color-cache size cap (200), `generateGradient` dedup, PropTypes on every component, `import React` removal — all complete.
+- **Vitest tests** — 50 tests across `physics.js`, `spatialGrid.js`, `audioReducer`.
+- **P4 features shipped** — three additional scales (A Pent Min, C Pent Maj, D Dorian) with note groups derived dynamically; `localStorage` persistence with deep-merged loading; `role="application"`, `tabIndex`, Space-to-spawn, ARIA on all sliders; `onPointerDown` for touch/stylus.
 
-| Layer | What's there |
+`npm run lint` reports **2 errors and 4 warnings** (see Bug B4 below). `npm test` is **50/50 passing**. `tsc --noEmit` is clean.
+
+The first- and second-pass review documents have been superseded by this one.
+
+---
+
+## High-level state
+
+| Layer | Status |
 |---|---|
-| **Interaction** | Click to create balls; each ball gets a random size and color |
-| **Physics** | Custom elastic-collision engine with O(n²→n) spatial-grid optimization |
-| **Audio** | Web Audio API oscillators → 4 optional per-type effects (delay, reverb, distortion, tremolo) → global compressor → limiter → master gain |
-| **Visuals** | GSAP-powered squish/glow on collision; rotating gradient background that evolves with ball colors |
-| **Controls** | Musical scale selector (C Major / A Minor / F Lydian), waveform, volume, duration, detune, all four effects — with independent settings for wall hits vs. ball-to-ball hits |
-
-### Tech stack
-
-- React 19 + Vite 6 (SPA, GitHub Pages deploy at `/oscillaphone/`)
-- GSAP 3 (animations + physics ticker)
-- Tailwind CSS 4 (installed but barely used in the active code)
-- Web Audio API (no library wrapper)
-
-### Component tree (active code only)
-
-```
-App
-└── BouncingCircles (index.jsx)          — layout, button animations, speed state
-    ├── AudioProvider (AudioContext.jsx) — centralized audio param state
-    ├── ScaleSelector                    — 3 scale buttons
-    ├── AudioControls                    — collapsible panel
-    │   ├── GlobalControls               — master volume + ball speed sliders
-    │   ├── CircleControls → EffectControls
-    │   └── WallControls   → EffectControls
-    └── CircleCanvas                     — physics loop, rendering, sound triggers
-        ├── useCollisions                — physics state + spatial grid
-        ├── useAnimationState            — GSAP timelines + tickers
-        └── useColorPalette              — color generation + gradient building
-```
-
-### What's genuinely solid
-
-- **Audio architecture** is sophisticated for a toy: a proper compressor→limiter→master chain prevents clipping when many balls collide at once; velocity-to-volume mapping makes fast hits louder naturally.
-- **Audio node pool** (`audioPool.js`) pre-allocates Web Audio nodes to avoid garbage-collection pressure during gameplay.
-- **Spatial grid** (`spatialGrid.js`) keeps collision detection fast as ball count grows.
-- **Squish animations** are proportional to impact velocity — a nice touch.
-- **Modular hook design** (useCollisions, useAnimationState, useColorPalette) keeps CircleCanvas from becoming a god component.
-- **GSAP cleanup** is handled correctly with `timeline.kill()` and ticker removal in `useEffect` returns.
+| Physics | ✅ Clean — pure functions, spatial grid, well-tested |
+| Audio graph | ✅ Single playback path; all four effects wired; ConvolverNode reverb |
+| State management | ✅ Single source of truth in React reducer; refs mirror state for closures |
+| Persistence | ⚠️ Works, but writes to `localStorage` on every dispatch (no debounce) |
+| Type safety | ⚠️ Audio core typed; every consumer is still JS — boundary leaks `any` |
+| Tests | ⚠️ Pure-logic islands covered; effect chain, hooks, persistence uncovered |
+| Lint | ⚠️ 2 errors / 4 warnings — `@typescript-eslint` plugin not loaded (Bug B4) |
+| CI | ⚠️ Build-only; no lint / test / type-check gate before deploy |
+| A11y / mobile | ✅ Pointer events, role + label, keyboard spawn |
 
 ---
 
-## Lint Status
+## Source inventory (active code)
 
-Running `npm run lint` produces **225 errors and 11 warnings** across 22 files. The errors fall into three categories:
-
-| Category | Count | Notes |
+| Path | Lang | Role |
 |---|---|---|
-| `no-unused-vars` | ~50 | Majority in flat `BouncingCircles.jsx` (dead file) |
-| `react/prop-types` | ~160 | All shared/effect control components lack PropTypes |
-| `react/display-name` | 1 | Memoized `Circle` component in `CircleCanvas.jsx` |
-| `react-hooks/exhaustive-deps` | 3 | Missing or stale ref in cleanup effects |
-| `no-undef` | 2 | `getAudioPoolStats` / `getEffectChainStats` used before re-export resolves |
-| `react-refresh/only-export-components` | 1 | `sound.js` exports both functions and constants |
-
-The bulk of the noise disappears once the dead flat `BouncingCircles.jsx` file is deleted.
+| [src/App.jsx](../src/App.jsx) | jsx | Renders `BouncingCircles` |
+| [src/main.jsx](../src/main.jsx) | jsx | Entry point |
+| [src/components/BouncingCircles/index.jsx](../src/components/BouncingCircles/index.jsx) | jsx | Shell, controls toggle, ball-speed state |
+| [src/components/BouncingCircles/CircleCanvas.jsx](../src/components/BouncingCircles/CircleCanvas.jsx) | jsx | Physics ticker, rendering, collision events (~830 lines) |
+| [src/components/BouncingCircles/ScaleSelector.jsx](../src/components/BouncingCircles/ScaleSelector.jsx) | jsx | Musical scale picker |
+| [src/components/BouncingCircles/AudioControls/index.jsx](../src/components/BouncingCircles/AudioControls/index.jsx) | jsx | Tab switcher |
+| [src/components/BouncingCircles/AudioControls/WallControls.jsx](../src/components/BouncingCircles/AudioControls/WallControls.jsx) | jsx | Wall-sound wiring |
+| [src/components/BouncingCircles/AudioControls/CircleControls.jsx](../src/components/BouncingCircles/AudioControls/CircleControls.jsx) | jsx | Circle-sound wiring |
+| [src/components/BouncingCircles/AudioControls/EffectControls.jsx](../src/components/BouncingCircles/AudioControls/EffectControls.jsx) | jsx | Shared per-effect UI |
+| [src/components/BouncingCircles/AudioControls/GlobalControls.jsx](../src/components/BouncingCircles/AudioControls/GlobalControls.jsx) | jsx | Master volume + ball speed |
+| [src/components/shared/Button.jsx](../src/components/shared/Button.jsx) | jsx | `forwardRef` button with GSAP hover |
+| [src/components/shared/Slider.jsx](../src/components/shared/Slider.jsx) | jsx | Range input + ARIA |
+| [src/components/shared/Checkbox.jsx](../src/components/shared/Checkbox.jsx) | jsx | |
+| [src/components/shared/ControlPanel.jsx](../src/components/shared/ControlPanel.jsx) | jsx | |
+| [src/context/AudioContext.tsx](../src/context/AudioContext.tsx) | tsx | Reducer, persistence, action creators (~990 lines) |
+| [src/context/audioReducer.test.js](../src/context/audioReducer.test.js) | js | Reducer unit tests |
+| [src/types/audio.ts](../src/types/audio.ts) | ts | `SoundSettings`, `AudioState`, `AudioAction` types |
+| [src/hooks/useAnimationState.js](../src/hooks/useAnimationState.js) | js | GSAP timeline + ticker management |
+| [src/hooks/useCollisions.js](../src/hooks/useCollisions.js) | js | Physics state + spatial grid |
+| [src/hooks/useColorPalette.js](../src/hooks/useColorPalette.js) | js | Color generation + gradient |
+| [src/hooks/useGSAP.js](../src/hooks/useGSAP.js) | js | Thin GSAP context wrapper |
+| [src/utils/sound.ts](../src/utils/sound.ts) | ts | Web Audio init, scales, `createOptimizedBeep` (~620 lines) |
+| [src/utils/effectChains.js](../src/utils/effectChains.js) | js | `EffectChain` class + 8-chain pool |
+| [src/utils/audioPool.js](../src/utils/audioPool.js) | js | Pre-allocated `AudioNode` pool |
+| [src/utils/physics.js](../src/utils/physics.js) | js | Elastic collision math |
+| [src/utils/physics.test.js](../src/utils/physics.test.js) | js | Tests |
+| [src/utils/spatialGrid.js](../src/utils/spatialGrid.js) | js | Hash-grid for O(n) collision queries |
+| [src/utils/spatialGrid.test.js](../src/utils/spatialGrid.test.js) | js | Tests |
 
 ---
 
@@ -74,225 +78,147 @@ The bulk of the noise disappears once the dead flat `BouncingCircles.jsx` file i
 
 ### 🔴 Bugs / Runtime Errors
 
-**1. `setWallDistortionOversample` is called but never exposed by AudioContext**
+**1. Distortion `oversample` setting is silently a no-op.**
+The UI control, `SET_*_DISTORTION_OVERSAMPLE` action types, reducer cases, default state value (`'2x'`), and `localStorage` persistence are all in place. The value is never applied to the WaveShaperNode: [src/utils/effectChains.js](../src/utils/effectChains.js) `EffectChain.configure()`'s distortion block sets `curve`, `distortionDry`, and `distortionMix` but never assigns `n.distortion.oversample`. To make matters worse, [src/utils/audioPool.js](../src/utils/audioPool.js#L141) `resetNode` always sets `oversample = 'none'` when a waveshaper is checked back out of the pool. This is the same shape of bug as the original P1 oversample fix — it just moved one layer down with the EffectChain wiring.
 
-`WallControls.jsx` destructures `setWallDistortionOversample` from `useAudio()`, but `AudioContext.jsx` has no `SET_WALL_DISTORTION_OVERSAMPLE` action type and never exposes that function. The call will silently resolve to `undefined`, meaning oversample changes from the UI are no-ops. (The mirrored `circleSettings` has the same gap.)
+**2. `cleanupAudio()` is never invoked.**
+[src/context/AudioContext.tsx](../src/context/AudioContext.tsx) calls `initAudioContext()` in the mount `useEffect` but returns no cleanup. On Vite HMR, on `AudioProvider` unmount, and on full SPA teardown, the audio context, the 30-second `setInterval`, and the pre-allocated pools are never released. Production impact is small (the provider lives for the page lifetime), but dev-mode HMR steadily accumulates intervals and pooled nodes.
 
-**2. The "optimized" sound path silently falls back when effect chains are exhausted**
+**3. No `audioContext.resume()` after first user gesture.**
+[src/utils/sound.ts](../src/utils/sound.ts) `initAudioContext` constructs the context but never calls `.resume()`. iOS Safari (and some Android browsers) keep newly-created contexts in `suspended` state until an explicit resume is fired from a user gesture. The first click currently constructs the context but may not actually start audio output on those browsers.
 
-`createOptimizedBeep` silently falls back to basic sound (no delay/reverb/distortion/tremolo) when the chain pool has nothing to give. With rapid collisions this is common and produces audible inconsistency — a burst of hits sounds different from a steady stream.
-
-**3. `setInterval` in `initAudioContext` is never cleared**
-
-```js
-setInterval(() => { pool.cleanup() }, 30000)
-```
-
-The interval ID is not stored, so it can never be cancelled. If the audio context is re-initialized (e.g. after `cleanupAudio()` is called), a new interval accumulates alongside the old one.
-
-**3. `getAudioMemoryStats` uses `getAudioPoolStats` / `getEffectChainStats` before the re-export is resolved**
-
-`sound.js` re-exports these functions via ES module `export { ... } from` statements, then immediately calls them in `getAudioMemoryStats()` in the same file scope. ESLint flags these as `no-undef` (lines 1174–1175). This is a scoping issue — the re-exported names are not in the local scope of the file. The fix is to import them normally at the top.
-- **Files:** `src/utils/sound.js`
-
-**4. `setAudioOptimization` toggle is a stub that does nothing**
-
-`sound.js` exports `setAudioOptimization(enabled)` which logs a console message but has no real effect — the comment says "This would require more refactoring to fully implement the switch." This is dead/stub code exported as a real API.
-- **Files:** `src/utils/sound.js`
+**4. Lint is broken: `@typescript-eslint/no-non-null-assertion` rule is not loaded.**
+Two `eslint-disable-next-line @typescript-eslint/no-non-null-assertion` comments in [src/utils/sound.ts](../src/utils/sound.ts) (lines ~295, ~316) reference a rule that isn't registered — [eslint.config.js](../eslint.config.js) only imports `@typescript-eslint/parser`, not the `@typescript-eslint` plugin. ESLint flags both as `Definition for rule '@typescript-eslint/no-non-null-assertion' was not found`, producing **2 errors**. There are also **4 warnings**: one `react-hooks/exhaustive-deps` in `CircleCanvas.jsx` (line 788) and three `react-refresh/only-export-components` in `AudioContext.tsx` (the test-only exports of `audioReducer`, `initialState`, `ActionTypes`). Either install the plugin and wire it into the TS overrides, or remove the disables and the corresponding non-null assertions.
 
 ---
 
 ### 🟠 Architecture / Design Problems
 
-**4. Dual state — React state and module-level variables are both sources of truth**
+**4. TypeScript migration is partial; the value boundary leaks `any`.**
+`AudioContext.tsx`, `sound.ts`, and `types/audio.ts` are typed with `strict: true`. Every consumer — `CircleCanvas.jsx`, all `AudioControls/*.jsx`, all `shared/*.jsx`, all hooks — is still JavaScript. `useAudio()` returns a fully-typed `AudioContextValue`, but JS callers observe it as `any`, which removes most of the migration's safety value. The next concentric layer to migrate (in dependency order):
+- `src/utils/physics.js`, `src/utils/spatialGrid.js` (pure, no DOM)
+- `src/hooks/useCollisions.js`, `useColorPalette.js`, `useAnimationState.js`
+- `src/components/shared/*.jsx` (small, leaf)
+- `src/components/BouncingCircles/AudioControls/*.jsx`
+- `CircleCanvas.jsx`, `BouncingCircles/index.jsx` (last)
 
-Every audio parameter is stored twice: once in React state in `AudioContext.jsx` and once as a `let` variable at the top of `sound.js` (`wallDelayEnabled`, `wallReverbRoomSize`, etc. — ~30 variables). The React state dispatches call into `sound.js` setter functions to keep them in sync. This creates an implicit hidden state layer that is impossible to unit-test and can diverge on hot-reload.
+**5. `localStorage` is written on every reducer dispatch.**
+[src/context/AudioContext.tsx](../src/context/AudioContext.tsx) (~line 644) runs `JSON.stringify(state); localStorage.setItem(...)` inside a `useEffect` with `[state]`. While the user drags a slider this fires at the React render rate (~60 Hz). Should be debounced (~250 ms) or written on `pointerup`.
 
-The right fix is one of:
-- Move all audio parameter reads inside the sound-playback functions (accept them as arguments), or
-- Use the React state as the single source and pass current values at call-site
+**6. Deploy workflow has no quality gate.**
+[.github/workflows/deploy.yml](../.github/workflows/deploy.yml) runs `npm ci && npm run build` and ships. It does not run `npm run lint`, `npm test`, or `tsc --noEmit`. The current "0 errors" baseline is honour-system. The workflow targets `main`, while the working branch is `dev_branch` — confirm intent.
 
-**5. `createOriginalBeep` and `createOptimizedBeep` coexist without clarity**
+**7. Five exports in `sound.ts` are unused.**
+`cleanupNodes`, `cleanup`, `getGlobalVolume`, `playBeep`, and the `_tombstone` arrow (with `void _tombstone`) have no callers anywhere. The tombstone is especially noisy — a one-line comment is enough.
 
-Both functions exist in `sound.js`. The public-facing `playCollisionBeep` / `playWallCollisionBeep` route through `createOriginalBeep` (the non-optimized path), while `createOptimizedBeep` is defined but only reached on a fallback from the effect-chain path. The intent and relationship between these two is unclear and creates maintenance burden.
+**8. ESLint config still says `react: { version: '18.3' }`.**
+[eslint.config.js](../eslint.config.js) declares the React version explicitly while `package.json` has React 19. This can produce subtly stale rule behavior (especially around new hooks/refs semantics). Set to `'detect'` or `'19'`.
 
-**6. Oscillator pooling is architecturally unsound**
+**9. Two `eslint-disable @typescript-eslint/no-non-null-assertion` in `sound.ts`** (lines ~295, ~316). Both immediately follow `initAudioContext()`, which guarantees non-null. With the plugin missing (Bug B4), these disables are themselves what's causing the lint errors. Either install `@typescript-eslint/eslint-plugin` and wire it into the TS overrides, or extract an `assertContext()` helper / return the context from `initAudioContext` and drop the assertions entirely.
 
-`audioPool.js` pre-allocates oscillator nodes and tries to return them from a pool. However, the Web Audio spec does not allow restarting a stopped oscillator — each oscillator can only call `.start()` once. The pool code does call `createFreshNode('oscillator')` as a fallback when the pool is empty, so it still works, but the pool for oscillators is effectively always empty and serves no purpose.
+**10. `removeCircleFromRender` in CircleCanvas is dead code under `eslint-disable`.**
+[src/components/BouncingCircles/CircleCanvas.jsx](../src/components/BouncingCircles/CircleCanvas.jsx#L323) — defined and disabled, waiting for a ball-cap implementation (see UX section). Either implement the cap or remove the helper.
 
-**7. Reverb is a multi-tap comb filter, not a convolution reverb**
+**11. GSAP per-ball tickers are added but never removed.**
+[src/hooks/useAnimationState.js](../src/hooks/useAnimationState.js) exports `removeTicker`; nothing in `CircleCanvas.jsx` calls it. Each ball's ticker callback runs every frame for the page lifetime, even if balls become invisible or are conceptually "gone." Closures retain DOM refs, GSAP state, and per-ball collision tracking objects. Unmount cleanup catches them but normal play does not. (BACKLOG A10.)
 
-The `createReverbNetwork` function builds 4 parallel delay lines with feedback. This produces a metallic, resonant coloring — not a convincing room reverb. A proper implementation would use a `ConvolverNode` with an impulse response buffer (which can be synthesized programmatically; no audio files needed).
+**12. `lastCollisionTimes` Map grows monotonically.**
+[src/components/BouncingCircles/CircleCanvas.jsx](../src/components/BouncingCircles/CircleCanvas.jsx#L711) accumulates a `pairKey → timestamp` entry for every ball-pair that has ever collided. Entries are never pruned, so the Map grows to O(N²). Becomes acute once a ball cap exists and balls are removed — their pair entries linger. (BACKLOG A11.)
 
-**8. Tremolo waveform shape is implemented but not exposed**
+**13. `audioPool.cleanup()` is effectively a no-op.**
+The 30-second interval started by [src/utils/sound.ts](../src/utils/sound.ts) `initAudioContext` only removes nodes whose `context.state === 'closed'`. That state only happens during full audio-context teardown, at which point the pool is destroyed anyway. The interval does nothing in normal operation but contributes to B2's leak surface. (BACKLOG A12.)
 
-`sound.js` tracks `wallTremoloShape` and `circleTremoloShape` variables and passes them to `createTremoloNetwork`. However, `AudioContext.jsx` has no action type for changing shape, and the UI has no control. Users can only use sine-wave tremolo.
+**14. `AudioContext.tsx` is ~95% boilerplate.**
+Of ~990 lines, ~900 are per-action ceremony: 30+ action types, 30+ reducer cases, 30+ action creators, 30+ context-value entries. A path-based action (`{ type: 'SET', path: [...], value }`) plus a `Path<T>` / `PathValue<T,P>` recursive type collapses this to ~150 lines while preserving type safety. (BACKLOG A13.)
 
----
-
-### 🟡 Code Quality
-
-**NEW: The `EffectChain` tremolo is incomplete — it's a stub**
-
-In `effectChains.js`, the `configure()` method for tremolo only adjusts mix/depth gain values but never creates or starts an LFO oscillator. The comment in the file says "full implementation would need LFO". This means when the optimized path (`createOptimizedBeep`) is used, tremolo is silently non-functional. The original path does have a working LFO via `createTremoloNetwork`.
-- **Files:** `src/utils/effectChains.js`
-
-**NEW: `EffectChain` reverb only uses 2 of the 4 allocated delay nodes**
-
-The pool allocates `reverb1` and `reverb2` delay nodes but the wiring in `wireChain()` doesn't actually connect them — there is no reverb signal path in the effect chain at all. The `configure()` method sets gain values for `reverbMix`/`reverbDry` but those nodes are never in the signal path. Reverb is effectively silent in the optimized path.
-- **Files:** `src/utils/effectChains.js`
-
-**NEW: `EffectChain` distortion node is similarly unwired**
-
-The `distortion` (waveshaper) node and `distortionMix`/`distortionDry` gain nodes exist in the pool but `wireChain()` does not connect them into the signal path. Distortion is also non-functional in the optimized path.
-- **Files:** `src/utils/effectChains.js`
-
-**Summary:** The optimized effect chain path (`createOptimizedBeep`, used as fallback from `createOriginalBeep`) only reliably implements delay. Reverb, distortion, and tremolo are all stubs. Because `createOriginalBeep` is the primary path (see `const createBeep = createOriginalBeep`), this doesn't break the app — but it means the entire `effectChains.js` investment is not delivering value.
-
-**NEW: `sound.js` re-exports `AVAILABLE_SCALES` and `WAVEFORMS` twice in the same file**
-
-Both constants are exported at two different points in `sound.js` (around line 200 and again around line 700+). ES modules deduplicate this at runtime, but it's confusing and causes a `react-refresh` lint warning about mixing component and constant exports.
-
-**NEW: `AudioContext.jsx` syncs ALL state on every state change (n×m setter calls)**
-
-The main `useEffect` in `AudioProvider` runs every time ANY part of the state changes, calling all ~30 setter functions into `sound.js` on every dispatch. Changing a single knob triggers `setWallDuration`, `setWallDetune`, `setWallWaveform`, ... all 30+ setters. This is harmless for performance (the setters are cheap), but it amplifies the dual-state problem and makes the sync hard to reason about.
-
-**NEW: `GlobalVolumeControl.jsx` is never rendered**
-
-`GlobalVolumeControl.jsx` is a standalone component with its own `ControlPanel` wrapper and a single volume slider. The active controls panel uses `GlobalControls.jsx` instead, which has both master volume and ball speed. `GlobalVolumeControl.jsx` appears to be a leftover from an earlier design.
-- **Files:** `src/components/BouncingCircles/AudioControls/GlobalVolumeControl.jsx`
-
-**9. `convertHSLToRGBA` uses a DOM element as a color-parsing hack**
-
-```js
-const div = document.createElement('div')
-div.style.color = hslColor
-document.body.appendChild(div)
-const rgbColor = window.getComputedStyle(div).color
-document.body.removeChild(div)
-```
-
-This is a common trick but it appends/removes a DOM node on every new color. HSL→RGB conversion is a well-known formula; doing it in pure JS removes the DOM dependency and is faster.
-
-**10. `colorCache` grows without bound**
-
-The `colorCache = new Map()` at module level in `CircleCanvas.jsx` never evicts entries. In a typical session this is harmless (a finite number of colors), but it's a latent memory leak if the app runs for extended periods.
-
-**11. `generateGradient` is duplicated**
-
-The function exists in both `useColorPalette.js` (used by CircleCanvas) and `BouncingCircles/index.jsx` (used for the button hover effect). The two implementations are nearly identical but not identical. They should share one implementation.
-
-**12. No TypeScript**
-
-The audio parameter structures (nested objects with ~30 fields each), the circle physics state, and the AudioContext API surface have no type contracts. Refactoring is risky and IDE support is limited.
-
-**13. No tests**
-
-Zero test files exist anywhere in the repo. The physics functions in `physics.js` (`resolveCollision`, `checkCircleCollision`) are pure and straightforward to test. The AudioContext reducer is also pure and easy to cover.
+**15. `tsconfig` has `checkJs: false`.**
+[tsconfig.json](../tsconfig.json) lets `.js` files import typed `.ts` modules with no type checking at the boundary, defeating most of the partial-migration's value. Flipping `checkJs: true` (with `// @ts-nocheck` escape hatches) surfaces real errors immediately. (BACKLOG A14.)
 
 ---
 
-### 🟡 Dead Code
+### 🟡 Test coverage gaps
 
-**NEW: `src/components/BouncingCircles.jsx` (flat, 1,801 lines) is the original monolith — fully functional but entirely superseded**
+**11. `effectChains.js` is the largest piece of net-new logic and is entirely untested.**
+The IR cache, signal-graph wiring, `configure()` (especially the LFO lifecycle), `deactivate`/`reset`, and the pool overflow path could all be covered by mocking `AudioContext` (or extracting the IR-cache key logic). Skipping the whole file is a defensible call given the Web Audio API's hostility to mocking — but the cache key, the impulse-response math, and the "pool overflow creates a new chain" edge case are pure logic and worth testing.
 
-This file is the complete pre-refactor implementation of the app. It includes its own physics loop, all audio state management, all UI controls, and all animation logic — all in one component. It was kept when the modular architecture was built. ESLint reports ~40 errors in it (all unused imports from a superseded import list). It is never imported anywhere and should be deleted. It accounts for nearly half the total lint error count.
+**12. Hooks and persistence are uncovered.**
+`useCollisions`'s collision-event payload shape, `loadPersistedState`'s deep-merge behavior (especially for older saved blobs missing new effect keys), and `useColorPalette`'s gradient math have no tests.
 
-**14. Several files/components are never rendered**
+---
 
-| File | Status |
+### 🟡 Code quality / housekeeping
+
+**13. `.DS_Store` is in the repo root** — add to `.gitignore`.
+
+**14. Documentation drift** — see [Stale claims in earlier docs](#stale-claims-in-earlier-docs) below. This rewrite supersedes the earlier passes.
+
+---
+
+### 🟡 UX / Feature Gaps (still open)
+
+**15. Ball count cap** — no upper bound on spawning. With 50+ balls the physics loop bogs down. The `removeCircleFromRender` helper is already in place for this. (P4-1)
+
+**16. Collapsible effect sections + overflow scroll on the controls panel.** Today all four effects are rendered fully expanded for both wall and ball settings — ~40 controls visible at once. (P4-2)
+
+**17. Tremolo waveform shape is plumbed end-to-end except for the UI.** [src/utils/effectChains.js](../src/utils/effectChains.js) `configure()` accepts `tremolo.shape` and falls back to `'sine'` ([src/utils/sound.ts](../src/utils/sound.ts#L370) passes it through). There's no action type, action creator, or UI control. (P4-3)
+
+**18. Space-to-spawn places the ball at a random position**, while click spawns at the click point ([CircleCanvas.jsx](../src/components/BouncingCircles/CircleCanvas.jsx) `handleKeyDown`). Inconsistent — pick one (center, last pointer, or random) and apply consistently.
+
+**19. Custom favicon and meta tags** — still ships with the default Vite favicon. (P4-5)
+
+**20. Preset system** for named audio configurations (still backlog). (P4-4)
+
+---
+
+## Stale claims in earlier docs
+
+The following items in the second-pass review/backlog and `.claude/CLAUDE.md` are now obsolete or contradicted by code:
+
+| Stale claim | Current reality |
 |---|---|
-| `src/components/AnimatedHero.jsx` | Not imported anywhere |
-| `src/components/NavBar.jsx` | Not imported anywhere |
-| `src/components/ScrollSection.jsx` | Not imported anywhere |
-| `src/layouts/MainLayout.jsx` | Not imported anywhere (has its own lint error) |
-| `src/contexts/` | Empty directory |
-| `src/utils/animations.js` | Exports `slideIn`, `pageTransition`, etc. — none used by active code |
-| `src/components/BouncingCircles/AudioControls/GlobalVolumeControl.jsx` | Not imported anywhere (superseded by `GlobalControls.jsx`) |
+| `sound.js` is 453 lines | It's now `sound.ts`, ~620 lines (TS overhead + per-octave scale data) |
+| `AudioContext.jsx` ~918 lines | It's now `AudioContext.tsx` ~990 lines |
+| `generateGradient` is duplicated | Deduped — both consumers import from `useColorPalette` |
+| `createOriginalBeep` / `createOptimizedBeep` coexist | Only `createOptimizedBeep` remains; tombstone arrow noted above |
+| Dead files (`BouncingCircles.jsx` monolith, `AnimatedHero`, `NavBar`, etc.) | All deleted |
+| Reverb is a comb-filter network | Now `ConvolverNode` with synthesized stereo IR + IR cache |
+| Tremolo / distortion / reverb are unwired stubs in `effectChains.js` | All wired and configured |
+| `colorCache` grows without bound | Capped at 200 with FIFO eviction |
+| 225 lint errors / 11 warnings | 2 errors / 4 warnings (see Bug B4 — was 0/0 until the TS-eslint plugin gap surfaced) |
+| No tests | 50 tests across physics, spatial grid, reducer |
+| README understates feature set | Updated; lists all four effects, scales, touch support |
+| Pending `setWallDistortionOversample` action type | Action types exist; the value just isn't applied to the node (see Bug 1) |
+| "P4-22 through P4-29: TBD" | Removed; current backlog is items 1–6 in BACKLOG.md |
 
-These appear to be scaffolding from the initial project template or superseded by the refactor. They add noise when reading the codebase.
-
-**15. `src/components/BouncingCircles.jsx` (flat) — superseded monolith**
-
-Covered above — 1,801-line original implementation, never imported, should be deleted.
-
-**NEW: `cleanupAudioNodes` in `sound.js` is defined twice**
-
-There are two definitions of `cleanupAudioNodes` in `sound.js` — one near the top of the file and the second one appears again later in the file (around the note group definitions area, which is duplicated content). This is a copy-paste artifact from the file's evolution.
-
----
-
-### 🟡 UX / Feature Gaps
-
-**16. No touch / mobile support**
-
-Ball creation is click-only (`onClick` on the container). On a phone or tablet, touch events are not handled, so the app doesn't work on mobile.
-
-**17. No ball count limit**
-
-Users can click indefinitely. With 50+ balls the browser tab can bog down from the physics loop and audio node creation. A simple soft cap (e.g. 30 balls, oldest removed) would keep performance stable.
-
-**18. No settings persistence**
-
-All audio settings reset to defaults on page refresh. Browser `localStorage` could persist the AudioContext state between sessions with minimal effort.
-
-**19. Controls panel is very long with no progressive disclosure**
-
-The panel shows all four effects (delay, reverb, distortion, tremolo) fully expanded for both wall and circle sounds simultaneously. This is ~40 controls visible at once. Collapsible sections per effect would significantly improve usability.
-
-**20. Only 3 musical scales**
-
-C Major, A Minor, and F Lydian cover a narrow range. Common additions: pentatonic scales (very forgiving — nearly every note sounds good together), blues scale, chromatic mode.
-
-**21. README undersells the feature set**
-
-The README lists delay as a feature but doesn't mention reverb, distortion, or tremolo, which are the most interesting effects.
-
-**22. Accessibility: no keyboard support, no ARIA roles**
-
-The entire UI is click/mouse driven. The container div uses `onMouseDown` with no keyboard equivalent. Screen readers receive no semantic information. Adding `role="application"` and basic keyboard handling (e.g. Space to spawn a ball) would be a meaningful improvement.
-
-**23. `index.html` uses the default Vite favicon (`/vite.svg`)**
-
-The app ships with a Vite boilerplate favicon. A custom icon would make it feel finished.
-
-**24. Controls panel has no scrolling on small screens**
-
-The controls panel renders as a fixed-position overlay. On viewports shorter than ~800px (e.g., a laptop with the browser partially sized), the bottom controls are cut off with no way to scroll to them.
+Items still accurate from earlier passes: the bug-history lessons (`ReferenceError` killing the rAF loop; settings-ref pattern), the architecture overview, the GSAP cleanup discipline.
 
 ---
 
 ## Opportunities for Improvement
 
-These are prioritized roughly by impact-to-effort ratio.
+Roughly impact-to-effort ordered.
 
-### Quick wins (low effort, noticeable impact)
+### Quick wins
+1. **Fix the oversample no-op** — set `n.distortion.oversample = settings.distortion.oversample` in `EffectChain.configure()` (and stop forcing `'none'` in `audioPool.resetNode`). 5 minutes.
+2. **Remove dead exports + tombstone in `sound.ts`** — straight deletion. 5 minutes.
+3. **Add `.DS_Store` to `.gitignore`**.
+4. **Update ESLint react version** to `'detect'` or `'19'`.
+5. **Add `audioContext.resume()`** in `initAudioContext` (after construction) to fix iOS Safari. 5 minutes.
+6. **Add `cleanupAudio()` cleanup return** to the `AudioProvider` mount effect.
+7. **Make Space-to-spawn consistent** with click (center or last pointer).
 
-1. **Delete the dead-code files** — the monolithic `BouncingCircles.jsx` alone clears ~40 lint errors; deleting it + other dead files removes ~80% of total lint noise immediately
-2. **Fix `setWallDistortionOversample` / `setCircleDistortionOversample` bug** — add action type and action creator to AudioContext (30 min)
-3. **Fix the `setInterval` ID leak** — store ID, clear in `cleanupAudio()` (5 min)
-4. **Fix `getAudioPoolStats`/`getEffectChainStats` import in `sound.js`** — change re-export to a normal `import` at the top (5 min)
-5. **Remove `setAudioOptimization` stub** — does nothing, exported as real API
-6. **Add `displayName` to the memoized `Circle` component** in `CircleCanvas.jsx` — one-liner
-7. **Add a ball count cap** — keeps performance predictable
-8. **Add touch/pointer event support** — change `onMouseDown` to `onPointerDown`, one character change
-
-### Medium investment, high payoff
-
-9. **Wire the `EffectChain` reverb, distortion, and tremolo signal paths** — `wireChain()` needs these connected; once done, `createOptimizedBeep` replaces `createOriginalBeep` and the node pool delivers its intended value
-10. **Collapse the dual-state pattern** — pass current settings as arguments to playback functions; removes the 30+ module-level variables and the entire sync `useEffect`
-11. **Add `localStorage` persistence** for AudioContext state
-12. **Add collapsible sections + overflow scroll to the controls panel** — addresses both progressive disclosure and small-screen clipping
-13. **Expose tremolo shape in the UI** — backend already supports it
+### Medium investment
+8. **Debounce `localStorage` writes** (~250 ms) or write on `pointerup`.
+9. **Add lint + test + `tsc --noEmit` to the deploy workflow** as a build-time gate.
+10. **Ball count cap (P4-1)** — wire up the orphan `removeCircleFromRender`.
+11. **Collapsible effect sections + overflow scroll (P4-2)**.
+12. **Expose tremolo waveform in the UI (P4-3)**.
 
 ### Larger investments
-
-14. **TypeScript migration** — start with `physics.js` and the AudioContext reducer
-15. **Unit tests** (Vitest) — physics functions and the AudioContext reducer are pure and easy targets
-16. **Replace reverb with a `ConvolverNode`** — programmatically generated impulse response
-17. **More musical scales** — pentatonic is the most accessible addition
-18. **Preset system** — save/load named audio configurations to `localStorage`
-19. **Accessibility** — keyboard support (`Space` to spawn), ARIA roles, focus management
+13. **Continue TS migration outward** — pure utils → hooks → shared → control components → CircleCanvas.
+14. **Targeted `effectChains.js` tests** — cover the IR-cache key, the impulse-response shape, and the pool overflow path with a thin `AudioContext` mock.
+15. **Preset system (P4-4)** — named save/load of audio configurations.
+16. **Custom favicon + Open Graph tags (P4-5)**.
 
 ---
 
@@ -300,18 +226,19 @@ These are prioritized roughly by impact-to-effort ratio.
 
 | File | Health | Notes |
 |---|---|---|
-| `src/utils/physics.js` | ✅ Good | Clean pure functions; easy to unit test |
-| `src/utils/spatialGrid.js` | ✅ Good | Well-structured, self-contained |
-| `src/utils/audioPool.js` | ⚠️ Fair | Good idea; oscillator pooling spec-incompatible but pool knows this and fallbacks gracefully |
-| `src/utils/effectChains.js` | 🔴 Incomplete | Reverb, distortion, and tremolo are unconnected stubs; only delay works in the optimized path |
-| `src/utils/sound.js` | 🔴 Complex | 1,198 lines; module-level mutable state; two parallel `createBeep` implementations; duplicated constant exports; `getAudioMemoryStats` import scoping bug; stub export |
-| `src/context/AudioContext.jsx` | ⚠️ Fair | Clean reducer pattern but 979 lines, mostly boilerplate; entire state re-synced on every dispatch; missing oversample action types |
-| `src/hooks/useCollisions.js` | ✅ Good | Clear responsibilities, good cleanup, spatial grid well-integrated |
-| `src/hooks/useAnimationState.js` | ⚠️ Fair | Solid GSAP abstraction; has ref-in-cleanup lint warning |
-| `src/hooks/useColorPalette.js` | ✅ Good | Clean; duplicated gradient logic is minor |
-| `src/components/BouncingCircles/CircleCanvas.jsx` | ⚠️ Fair | 805 lines; DOM color hack; unbounded colorCache; missing `displayName` |
-| `src/components/BouncingCircles/index.jsx` | ⚠️ Fair | Duplicated gradient logic; otherwise clean |
-| `src/components/BouncingCircles/AudioControls/*` | ✅ Good | Thin, composable wrapper components; missing PropTypes |
-| `src/components/shared/*` | ✅ Good | Clean reusable components; missing PropTypes |
-| `src/components/BouncingCircles.jsx` (flat) | 🗑️ Delete | 1,801-line original monolith; never imported; ~40 lint errors |
-| Dead-code files (AnimatedHero, NavBar, GlobalVolumeControl, etc.) | 🗑️ Delete | Unused scaffolding |
+| `src/utils/physics.js` | ✅ | Pure, tested |
+| `src/utils/spatialGrid.js` | ✅ | Pure, tested |
+| `src/utils/audioPool.js` | ⚠️ | Sound architecture; `resetNode` clobbers `waveshaper.oversample` (root of Bug 1) |
+| `src/utils/effectChains.js` | ⚠️ | Wiring + IR cache solid; oversample never set; zero test coverage |
+| `src/utils/sound.ts` | ⚠️ | Single playback path; 5 dead exports + tombstone; no `resume()` |
+| `src/context/AudioContext.tsx` | ⚠️ | Clean reducer; persists too eagerly; no provider cleanup |
+| `src/types/audio.ts` | ✅ | Discriminated-union action type; matches reducer |
+| `src/hooks/useCollisions.js` | ✅ | Clear, integrated with grid; untested |
+| `src/hooks/useAnimationState.js` | ✅ | |
+| `src/hooks/useColorPalette.js` | ✅ | Single source for `generateGradient` |
+| `src/components/BouncingCircles/CircleCanvas.jsx` | ⚠️ | 830 lines; `removeCircleFromRender` dead; settings-ref pattern correct |
+| `src/components/BouncingCircles/index.jsx` | ✅ | |
+| `src/components/BouncingCircles/AudioControls/*` | ✅ | Thin, composable; PropTypes everywhere |
+| `src/components/shared/*` | ✅ | |
+| `.github/workflows/deploy.yml` | ⚠️ | No lint/test/tsc gate |
+| `eslint.config.js` | ⚠️ | React version pinned to 18.3 |

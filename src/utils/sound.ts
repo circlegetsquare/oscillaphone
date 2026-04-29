@@ -15,9 +15,6 @@ let globalMaster: GainNode | null = null;
 // Keep track of active audio nodes for cleanup
 let activeNodes: Set<AudioNode> = new Set();
 
-// ID for the periodic cleanup interval so it can be cancelled
-let cleanupIntervalId: ReturnType<typeof setInterval> | null = null;
-
 // Volume scaling constants
 const VOLUME_LIMITS = {
   MIN_VELOCITY: 1,    // Minimum velocity to start scaling volume
@@ -96,24 +93,12 @@ export const initAudioContext = () => {
     // Initialize audio pools for memory optimization
     getAudioPool(audioContext);
     getEffectChainPool(audioContext);
-
-    // Periodic cleanup to prevent memory leaks
-    cleanupIntervalId = setInterval(() => {
-      const pool = getAudioPool(audioContext);
-      if (pool) {
-        pool.cleanup();
-      }
-    }, 30000); // Cleanup every 30 seconds
   }
   return audioContext;
 };
 
 // Cleanup audio resources
 export const cleanupAudio = () => {
-  if (cleanupIntervalId !== null) {
-    clearInterval(cleanupIntervalId);
-    cleanupIntervalId = null;
-  }
   if (audioContext) {
     // Clean up all active nodes
     activeNodes.forEach(node => {
@@ -289,32 +274,21 @@ const noteGroupCache = new Map<string, NoteGroups>()
 let currentScale = 'C_MAJOR';
 
 const getRandomNote = (group: keyof NoteGroups): number => {
-  if (!noteGroupCache.has(currentScale)) {
-    noteGroupCache.set(currentScale, buildNoteGroups(currentScale))
+  let groups = noteGroupCache.get(currentScale)
+  if (!groups) {
+    groups = buildNoteGroups(currentScale)
+    noteGroupCache.set(currentScale, groups)
   }
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const groups = noteGroupCache.get(currentScale)!
   const noteNames = groups[group] ?? groups.WALL_MID
   const randomNoteName = noteNames[Math.floor(Math.random() * noteNames.length)]
   return (SCALES_MAP[currentScale]?.notes[randomNoteName] ?? 261.63)
 };
 
-const cleanupAudioNodes = (nodes: Set<AudioNode>): void => {
-  nodes.forEach(node => {
-    try {
-      node.disconnect();
-      activeNodes.delete(node);
-    } catch {
-      console.warn('Error cleaning up audio node');
-    }
-  });
-};
-
 // soundSettings is the wallSettings or circleSettings object from React AudioContext state.
 const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, pan = 0, soundSettings?: SoundSettings): void => {
   initAudioContext();
-  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const ctx = audioContext!  // initAudioContext() guarantees non-null
+  const ctx = audioContext
+  if (!ctx) return
 
   const pool = getAudioPool(ctx);
   const chainPool = getEffectChainPool(ctx);
@@ -392,39 +366,9 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
   }, (duration + tailTime + 0.1) * 1000);
 };
 
-// REMOVED: createOriginalBeep — no longer needed; createOptimizedBeep is the only path.
-// Left as a tombstone comment so git blame is informative.
-
-const _tombstone = (_frequency: unknown, _duration = 0.15, _volume = 0.3, _pan = 0, _soundType = 'circle') => {
-  // This function has been removed. See createOptimizedBeep.
-  throw new Error('createOriginalBeep has been removed');
-};
-void _tombstone;
-
-const createBeep = createOptimizedBeep;
-
 // Convert x position to pan value (-1 to 1)
 export const calculatePan = (x: number, width: number): number => {
   return (x / width) * 2 - 1;
-};
-
-// Higher pitched beep for creation
-export const playBeep = (pan = 0) => {
-  let note;
-  switch (currentScale) {
-    case 'C_MAJOR':
-      note = SCALES.C_MAJOR.notes.C5;
-      break;
-    case 'A_MINOR':
-      note = SCALES.A_MINOR.notes.A4;
-      break;
-    case 'F_LYDIAN':
-      note = SCALES.F_LYDIAN.notes.F5;
-      break;
-    default:
-      note = SCALES.C_MAJOR.notes.C5;
-  }
-  createBeep(note, 0.15, 0.3, pan);
 };
 
 // Play a note for circle-to-circle collisions.
@@ -434,7 +378,7 @@ export const playCollisionBeep = (pan = 0, velocity = 0, soundSettings?: SoundSe
   const note = getRandomNote(group);
   const maxVolume = soundSettings?.volume ?? 0.15;
   const volume = mapVelocityToVolume(velocity, maxVolume);
-  createBeep(note, soundSettings?.duration ?? 0.25, volume, pan, soundSettings);
+  createOptimizedBeep(note, soundSettings?.duration ?? 0.25, volume, pan, soundSettings);
 };
 
 // Play a note for wall collision events.
@@ -444,7 +388,7 @@ export const playWallCollisionBeep = (pan = 0, velocity = 0, soundSettings?: Sou
   const note = getRandomNote(group);
   const maxVolume = soundSettings?.volume ?? 0.15;
   const volume = mapVelocityToVolume(velocity, maxVolume);
-  createBeep(note, soundSettings?.duration ?? 0.25, volume, pan, soundSettings);
+  createOptimizedBeep(note, soundSettings?.duration ?? 0.25, volume, pan, soundSettings);
 };
 
 // Export scale setter — still needed because getRandomNote and playBeep read currentScale
@@ -462,27 +406,17 @@ export const setGlobalVolume = (volume: number): void => {
   }
 };
 
-export const getGlobalVolume = () => {
-  return globalMaster ? globalMaster.gain.value : 1.0;
-};
-
-// Cleanup all audio nodes but keep the audio context
-export const cleanupNodes = () => {
-  cleanupAudioNodes(activeNodes);
-};
-
-// Full cleanup including audio context
-export const cleanup = () => {
-  if (audioContext) {
-    cleanupAudioNodes(activeNodes);
-    // We don't close the audio context as it can cause issues
-    // Just clean up the nodes
-  }
-};
-
 // Audio Memory Optimization Exports
 // cleanupAudio already exported above
 export { getAudioPoolStats, getEffectChainStats };
+
+// Resume a suspended AudioContext — required on iOS Safari, which suspends the
+// context even when it is created during a user gesture.
+export const resumeAudioContext = (): void => {
+  if (audioContext && audioContext.state === 'suspended') {
+    audioContext.resume().catch(() => { /* ignore — context may not be ready yet */ })
+  }
+};
 
 // Debug function to get comprehensive audio memory stats
 export const getAudioMemoryStats = () => {

@@ -1,12 +1,10 @@
 import Button from '../shared/Button'
 import { useAudio } from '../../context/AudioContext'
 
-/**
- * Component for selecting musical scales
- */
+/** Renders one button per musical scale; highlights the currently active scale. */
 export default function ScaleSelector() {
   const { currentScale, setCurrentScale, AVAILABLE_SCALES } = useAudio()
-  
+
   return (
     <div style={{ marginBottom: '6px' }}>
       <div style={{

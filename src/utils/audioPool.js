@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Audio Node Pool for memory optimization
  * Reuses audio nodes instead of creating/destroying them constantly

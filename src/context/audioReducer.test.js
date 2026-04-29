@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi } from 'vitest'
 
 // Mock sound.js (and its transitive deps effectChains/audioPool) so Web Audio

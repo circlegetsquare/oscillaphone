@@ -1,6 +1,7 @@
-import { createContext, useContext, useReducer, useEffect, type Dispatch } from 'react'
+import { createContext, useContext, useReducer, useEffect, useRef, type Dispatch } from 'react'
 import {
   initAudioContext,
+  cleanupAudio,
   setScale,
   setGlobalVolume,
   AVAILABLE_SCALES,
@@ -726,17 +727,27 @@ const AudioContext = createContext<AudioContextValue | undefined>(undefined)
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(audioReducer, undefined, loadPersistedState)
 
-  // Persist state to localStorage on every change
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Persist state to localStorage on every change, debounced at 250 ms so rapid
+  // slider drags don't hammer storage on every tick.
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-    } catch { /* storage unavailable (private browsing quota) */ }
+    if (persistTimerRef.current !== null) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+      } catch { /* storage unavailable (private browsing quota) */ }
+      persistTimerRef.current = null
+    }, 250)
+    return () => {
+      if (persistTimerRef.current !== null) clearTimeout(persistTimerRef.current)
+    }
   }, [state])
 
-  // Initialize audio context on mount
+  // Initialize audio context on mount; clean up on unmount (B2).
   useEffect(() => {
-    // Initialize the audio context
     initAudioContext();
+    return () => { cleanupAudio(); }
   }, []);
   
   // Sync the two remaining module-level audio state values:

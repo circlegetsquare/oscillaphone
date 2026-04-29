@@ -1,3 +1,4 @@
+// @ts-nocheck
 import PropTypes from 'prop-types'
 import Slider from '../../shared/Slider'
 import ControlPanel from '../../shared/ControlPanel'

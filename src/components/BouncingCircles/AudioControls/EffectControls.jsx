@@ -1,3 +1,4 @@
+// @ts-nocheck
 import PropTypes from 'prop-types'
 import Slider from '../../shared/Slider'
 import Checkbox from '../../shared/Checkbox'
@@ -167,6 +168,30 @@ export default function EffectControls({
                 formatValue={(val) => `${(val * 100).toFixed(0)}%`}
                 style={{ marginBottom: '8px' }}
               />
+              {distortion.oversample && (
+                <div style={{ marginBottom: '8px' }}>
+                  <label style={{
+                    color: 'white',
+                    display: 'block',
+                    marginBottom: '6px',
+                    fontFamily: 'system-ui, sans-serif',
+                    fontSize: '13px'
+                  }}>
+                    Oversample
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px' }}>
+                    {['none', '2x', '4x'].map(opt => (
+                      <Button
+                        key={opt}
+                        onClick={() => distortion.oversample.onChange(opt)}
+                        isActive={distortion.oversample.value === opt}
+                      >
+                        {opt}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <Slider
                 label="Mix"
                 value={distortion.mix.value}
@@ -288,6 +313,7 @@ const effectPropShape = PropTypes.shape({
   roomSize: PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
   damping:  PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
   amount:   PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
+  oversample: PropTypes.shape({ value: PropTypes.string, onChange: PropTypes.func }),
   rate:     PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
   depth:    PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func }),
   mix:      PropTypes.shape({ value: PropTypes.number, onChange: PropTypes.func })

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { useRef, useEffect, useMemo, useCallback, useState, memo } from 'react'
 import PropTypes from 'prop-types'
 import gsap from 'gsap'
@@ -7,7 +8,8 @@ import { useColorPalette } from '../../hooks/useColorPalette'
 import {
   playCollisionBeep,
   playWallCollisionBeep,
-  calculatePan
+  calculatePan,
+  resumeAudioContext
 } from '../../utils/sound'
 import { useAudio } from '../../context/AudioContext'
 
@@ -132,6 +134,10 @@ Circle.propTypes = {
   onRef: PropTypes.func.isRequired
 }
 
+// Maximum number of balls allowed on screen at once. When exceeded,
+// the oldest ball is evicted (FIFO) to keep the physics loop responsive.
+const MAX_BALLS = 50
+
 /**
  * Component for rendering and animating circles
  * 
@@ -151,6 +157,13 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   const circleRefs = useRef(new Map())
   const squishAnimations = useRef(new Map())
   const glowAnimations = useRef(new Map())
+  // FIFO queue of currently-spawned ball ids; used to evict the oldest
+  // ball when MAX_BALLS is exceeded.
+  const ballIdsRef = useRef([])
+
+  // Per-pair cooldown tracking for ball-ball collision sounds.
+  // Declared here (before removeBall) so the eviction helper can prune stale entries.
+  const lastCollisionTimes = useRef(new Map())
 
   // React state for rendering circles (separate from physics state)
   const [renderCircles, setRenderCircles] = useState(new Map())
@@ -159,10 +172,12 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   const {
     createTimeline,
     addTicker,
+    removeTicker,
   } = useAnimationState()
   
   const {
     initCircle,
+    removeCircle,
     getCircleState,
     updateCircleState,
     handleWallCollision,
@@ -320,7 +335,6 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   /**
    * Remove a circle from the render state
    */
-  // eslint-disable-next-line no-unused-vars
   const removeCircleFromRender = useCallback((id) => {
     setRenderCircles(prev => {
       const newMap = new Map(prev)
@@ -328,6 +342,44 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       return newMap
     })
   }, [])
+
+  /**
+   * Fully remove a ball: stop its GSAP ticker, clear its physics + render
+   * state, kill any in-flight squish/glow animations, and drop its DOM ref.
+   * Used by the ball-cap eviction (P4-1) and closes the per-ball ticker
+   * leak (A10) by ensuring `removeTicker` is actually called.
+   */
+  const removeBall = useCallback((id) => {
+    // Stop the per-ball physics ticker so its callback no longer runs every frame
+    removeTicker(id)
+
+    // Clear physics + render state
+    removeCircle(id)
+    removeCircleFromRender(id)
+
+    // Prune cooldown entries for this ball so the Map doesn't grow forever (A11).
+    // The pair key is [id1, id2].sort().join('-'), so id is either the leading or
+    // trailing segment separated by '-'.
+    lastCollisionTimes.current.forEach((_, key) => {
+      if (key.startsWith(id + '-') || key.endsWith('-' + id)) {
+        lastCollisionTimes.current.delete(key)
+      }
+    })
+
+    // Kill and forget any in-flight animations bound to this ball's element
+    const el = circleRefs.current.get(id)
+    if (el) {
+      const squish = squishAnimations.current.get(el)
+      if (squish?.timeline) squish.timeline.kill()
+      squishAnimations.current.delete(el)
+
+      const glow = glowAnimations.current.get(el)
+      if (glow) glow.kill()
+      glowAnimations.current.delete(el)
+
+      circleRefs.current.delete(id)
+    }
+  }, [removeTicker, removeCircle, removeCircleFromRender])
 
   /**
    * Memoized callback for handling circle refs
@@ -567,12 +619,22 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   // Spawn a ball at a given canvas-relative position
   const spawnBallAt = useCallback((x, y) => {
     if (!containerRef.current) return
+
+    // Enforce ball cap (P4-1) — evict oldest ball(s) FIFO if at capacity.
+    // The loop guards against any drift if the ref ever gets out of sync.
+    while (ballIdsRef.current.length >= MAX_BALLS) {
+      const oldestId = ballIdsRef.current.shift()
+      if (oldestId !== undefined) removeBall(oldestId)
+    }
+
     const angle = Math.random() * 360
     const size = generateRandomSize()
     const color = generateRandomColor()
     addToColorPalette(color)
     const radians = (angle * Math.PI) / 180
-    const id = Date.now().toString()
+    // Use Date.now() + a counter-style suffix to avoid id collisions when
+    // the user clicks faster than 1ms (rare but possible on touch devices).
+    const id = `${Date.now()}-${ballIdsRef.current.length}`
     const initialState = {
       x,
       y,
@@ -581,6 +643,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       radius: size / 2,
       color
     }
+    ballIdsRef.current.push(id)
     initCircle(id, initialState)
     addCircleToRender(id, initialState)
     requestAnimationFrame(() => {
@@ -688,10 +751,13 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       // Add ticker function
       addTicker(id, tickerFunction)
     })
-  }, [initialSpeed, generateRandomSize, generateRandomColor, addToColorPalette, initCircle, getCircleState, updateCircleState, handleWallCollision, addTicker, playSquishAnimation, addCircleToRender])
+  }, [initialSpeed, generateRandomSize, generateRandomColor, addToColorPalette, initCircle, getCircleState, updateCircleState, handleWallCollision, addTicker, playSquishAnimation, addCircleToRender, removeBall])
 
   // Pointer handler — spawn ball at click/touch position
+  // resumeAudioContext() is called first so iOS Safari unblocks the AudioContext
+  // on the very first user gesture (B3).
   const handleMouseDown = useCallback((e) => {
+    resumeAudioContext()
     if (!containerRef.current) return
     const bounds = containerRef.current.getBoundingClientRect()
     spawnBallAt(e.clientX - bounds.left, e.clientY - bounds.top)
@@ -700,6 +766,7 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
   // Keyboard handler — Space spawns a ball at the center of the canvas
   const handleKeyDown = useCallback((e) => {
     if (e.code === 'Space' || e.key === ' ') {
+      resumeAudioContext()
       e.preventDefault()
       if (!containerRef.current) return
       const { width, height } = containerRef.current.getBoundingClientRect()
@@ -707,8 +774,6 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     }
   }, [spawnBallAt])
 
-  // Track last collision time for each pair of circles using a ref to persist across re-renders
-  const lastCollisionTimes = useRef(new Map());
   // Cooldown period in milliseconds
   const COLLISION_COOLDOWN = 300;
   
