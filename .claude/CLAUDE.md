@@ -175,26 +175,20 @@ Use conventional commits — enforced by practice, not tooling:
 - `refactor:` — code change with no behaviour change
 
 ### AudioContext Action Types
-All actions follow the pattern `SET_{WALL|CIRCLE}_{PARAM}` or `SET_{WALL|CIRCLE}_{EFFECT}_{PARAM}`. Full list in `src/context/AudioContext.tsx` (`ActionTypes` object, line ~91); typed in `src/types/audio.ts` as a discriminated `AudioAction` union. Summary:
+The reducer uses a path-based design (A13). Only two action types exist:
 
-```
-SET_SCALE, SET_GLOBAL_VOLUME
-SET_WALL_DURATION, SET_WALL_DETUNE, SET_WALL_WAVEFORM, SET_WALL_VOLUME
-SET_WALL_DELAY_{ENABLED,TIME,FEEDBACK,MIX}
-SET_WALL_REVERB_{ENABLED,ROOM_SIZE,DAMPING,MIX}
-SET_WALL_DISTORTION_{ENABLED,AMOUNT,OVERSAMPLE,MIX}
-SET_WALL_TREMOLO_{ENABLED,RATE,DEPTH,MIX}
-SET_CIRCLE_*  — mirrors all SET_WALL_* above
-RESET_ALL_CONTROLS
+```ts
+{ type: 'SET'; path: string[]; value: unknown }
+{ type: 'RESET_ALL_CONTROLS' }
 ```
 
-When adding a new effect, mirror both `WALL` and `CIRCLE` variants. Dispatch via `const { dispatch } = useAudio()`.
+All named setters on the context value are thin wrappers: `setWallDelayMix: (v) => set(['wallSettings', 'delay', 'mix'], v)`. Dispatch via `const { dispatch } = useAudio()`, or use the named setters from `useAudio()`.
 
 ### CircleCanvas Props
-```
-CircleCanvas.propTypes = {
-  onBackgroundChange: PropTypes.func,   // optional; called with gradient string
-  initialSpeed: PropTypes.number        // optional; default defined internally
+```tsx
+interface CircleCanvasProps {
+  onBackgroundChange?: (colors: string[]) => void  // optional; called with gradient string
+  initialSpeed?: number                             // optional; default 15
 }
 ```
 
@@ -204,43 +198,30 @@ CircleCanvas.propTypes = {
 
 Full, ranked backlog lives in [.docs/BACKLOG.md](../.docs/BACKLOG.md). Snapshot review of architecture and gaps in [.docs/REVIEW.md](../.docs/REVIEW.md) (third pass, April 2026).
 
-### Completed Refactors (P1 through partial P4)
-`tsc --noEmit` passes; tests are 50/50; `npm run lint` currently reports 2 errors / 4 warnings (see backlog **B4** — a TS-ESLint plugin is referenced by disable comments but never registered).
+### Current baseline
+`tsc --noEmit` passes · `npm run lint` 0 errors / 3 warnings (known, intentional) · `npm test` 62/62 · production build 306 kB JS.
 
-- **P1**: Fixed oversample setters, interval ID leak, import scoping, removed stubs
-- **P2**: EffectChain pool fully wired; `createOptimizedBeep` is the sole playback path; dual-state collapse (`sound.js` 700→453 lines); oscillator pool pre-allocation removed
-- **P3-A**: Deleted dead files (old `BouncingCircles.jsx` monolith, `AnimatedHero`, `NavBar`, `ScrollSection`, `MainLayout`, `animations.js`, `GlobalVolumeControl.jsx`, empty `contexts/`)
-- **P3-B**: Pure HSL color conversion, `colorCache` size cap, `generateGradient` deduplication
-- **P3-C**: PropTypes on every component, removed all `import React`, 225 lint errors → 0
-- **P3 tests**: 50 Vitest unit tests across `physics.js`, `spatialGrid.js`, `audioReducer`
-- **P4 (shipped)**: 3 additional scales (A Pent Min, C Pent Maj, D Dorian); ConvolverNode reverb with synthesized IR; `localStorage` persistence; accessibility (`role`, `tabIndex`, Space key, ARIA on sliders); touch via `onPointerDown`; partial TypeScript migration (`AudioContext.tsx`, `sound.ts`, `src/types/audio.ts`)
+### Completed Refactors (all P1–P5 and A1–A14)
 
-### Pending work (current backlog)
-See `.docs/BACKLOG.md` for full descriptions and effort estimates.
+- **P1–P3**: Oversample/timer/import fixes; dead-file cleanup; PropTypes; HSL conversion; 50 Vitest tests
+- **P4**: 3 new scales; ConvolverNode reverb; `localStorage` persistence; accessibility; touch support; ball cap (50, FIFO); `removeBall` (ticker + animation cleanup)
+- **P5 bugs (all done)**: B1 distortion oversample applied; B2 `cleanupAudio()` on unmount; B3 `resumeAudioContext()` on gesture; B4 lint fixed (0 errors)
+- **A1**: CI quality gate (`lint && test && tsc`) before deploy
+- **A2**: `localStorage` debounced 250 ms
+- **A3**: Full TypeScript migration — Wave 1 (types, utils, hooks, shared components) + Wave 2 (audioPool, effectChains, all AudioControls, BouncingCircles/index, CircleCanvas); all `.jsx`/`.js` deleted; `react/prop-types` off for `.ts/.tsx`
+- **A4**: Dead exports removed from `sound.ts`
+- **A5**: ESLint `react.version: 'detect'`
+- **A6**: 12 `effectChains.ts` tests (IR cache, IR shape, pool overflow)
+- **A7**: `.DS_Store` in `.gitignore`
+- **A8+B4**: `no-non-null-assertion` disable comments removed
+- **A11**: `lastCollisionTimes` Map pruned in `removeBall`
+- **A12**: Dead `audioPool` cleanup timer removed
+- **A13**: `AudioContext.tsx` collapsed — path-based `setIn` reducer, ~1020 → ~270 lines, `AudioAction` union = 2 variants
+- **A14**: `tsconfig.json` `checkJs: true`
 
-**P5 bugs**:
-- **B1**: Distortion `oversample` is a silent no-op (set in UI/state but never applied to WaveShaperNode)
-- **B2**: `cleanupAudio()` never called from `AudioProvider` — HMR/unmount leaks
-- **B3**: `audioContext.resume()` never called — silent on iOS Safari
-- **B4**: Lint broken — `@typescript-eslint/no-non-null-assertion` rule referenced by 2 disable comments in `sound.ts` but plugin not registered in `eslint.config.js` (2 errors). Plus 4 warnings (1 exhaustive-deps in `CircleCanvas.jsx`, 3 react-refresh in `AudioContext.tsx` for test-only exports).
+### Open backlog (P4 UX features)
+See `.docs/BACKLOG.md` for full descriptions.
 
-**P5 architecture/quality**:
-- **A1**: Add lint + test + tsc gate to deploy workflow
-- **A2**: Debounce `localStorage` writes (~250 ms)
-- **A3**: Continue TS migration outward (utils → hooks → shared → controls → CircleCanvas)
-- **A4**: Remove dead exports + tombstone in `sound.ts`
-- **A5**: Update ESLint react version (currently pinned to 18.3, project on 19)
-- **A6**: Targeted `effectChains.js` tests (IR cache, IR shape, pool overflow)
-- **A7**: Add `.DS_Store` to `.gitignore`
-- **A8**: Collapse the two `no-non-null-assertion` disables in `sound.ts`
-- **A3 Wave 1 (shipped)**: TS migration — `src/types/physics.ts` (new), `utils/physics.ts`, `utils/spatialGrid.ts`, all 4 hooks, all `shared/` components, `main.tsx`, `App.tsx`, `ScaleSelector.tsx`; `vite-env.d.ts` added
-- **A11**: `lastCollisionTimes` Map (collision-pair cooldowns) grows monotonically
-- **A12**: `audioPool.cleanup()` is a no-op (predicate only matches closed contexts)
-- **A13**: Collapse `AudioContext.tsx` to a path-based reducer (~990 → ~150 lines)
-- **A14**: Flip `tsconfig.checkJs` to `true` to surface JS→TS boundary errors
-
-**P4 UX/features**:
-- ~~**P4-1**: Ball count cap~~ ✅ done (50, FIFO eviction)
 - **P4-2**: Collapsible effect sections + overflow scroll
 - **P4-3**: Tremolo waveform shape UI (backend already accepts `tremolo.shape`)
 - **P4-4**: Audio settings preset system
