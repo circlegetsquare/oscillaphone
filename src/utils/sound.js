@@ -186,6 +186,49 @@ export const SCALES = {
       F5: 698.46, G5: 783.99, A5: 880.00, B5: 987.77,
       C6: 1046.50, D6: 1174.66, E6: 1318.51
     }
+  },
+  A_PENTATONIC_MINOR: {
+    name: "Penta Minor",
+    notes: {
+      // 2nd octave (wall collisions)
+      A2: 110.00, C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00,
+      // 3rd octave (wall collisions)
+      A3: 220.00, C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.00,
+      // 4th octave (circle collisions)
+      A4: 440.00, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99,
+      // 5th octave (circle collisions)
+      A5: 880.00, C6: 1046.50, D6: 1174.66, E6: 1318.51, G6: 1567.98
+    }
+  },
+  C_PENTATONIC_MAJOR: {
+    name: "Penta Major",
+    notes: {
+      // 2nd octave (wall collisions)
+      C2: 65.41, D2: 73.42, E2: 82.41, G2: 98.00, A2: 110.00,
+      // 3rd octave (wall collisions)
+      C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00, A3: 220.00,
+      // 4th octave (circle collisions)
+      C4: 261.63, D4: 293.66, E4: 329.63, G4: 392.00, A4: 440.00,
+      // 5th octave (circle collisions)
+      C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880.00
+    }
+  },
+  D_DORIAN: {
+    name: "D Dorian",
+    notes: {
+      // 2nd octave (wall collisions)
+      D2: 73.42, E2: 82.41, F2: 87.31, G2: 98.00,
+      A2: 110.00, B2: 123.47, C3: 130.81,
+      // 3rd octave (wall collisions)
+      D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.00,
+      A3: 220.00, B3: 246.94, C4: 261.63,
+      // 4th octave (circle collisions)
+      D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00,
+      A4: 440.00, B4: 493.88, C5: 523.25,
+      // 5th octave (circle collisions)
+      D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99,
+      A5: 880.00, B5: 987.77, C6: 1046.50
+    }
   }
 };
 
