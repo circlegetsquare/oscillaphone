@@ -13,6 +13,9 @@ Items ranked by priority. Each entry has a rough effort estimate.
 - **P4**: More scales — A Pent Min, C Pent Maj, D Dorian added; note groups now derived dynamically
 - **P4**: ConvolverNode reverb with synthesized IR (replaced comb filter)
 - **P4**: README updated
+- **P4**: Persist settings to `localStorage` — deep-merged with `initialState` on load
+- **P4**: Accessibility — `role="application"`, `tabIndex`, Space key spawns ball at random position, `aria-label`/`aria-valuetext` on all sliders
+- **P4**: Partial TypeScript migration — `AudioContext.tsx`, `sound.ts`, `src/types/audio.ts`; `tsc --noEmit` passes with `strict: true`
 
 ---
 
@@ -28,10 +31,7 @@ The full controls panel shows ~40 controls at once. Wrap each effect (Delay, Rev
 - **Effort:** S
 - **Files:** `src/components/BouncingCircles/AudioControls/EffectControls.jsx`
 
-### 3. Persist settings to `localStorage`
-All audio settings reset on page refresh. Serialize `AudioContext` state to `localStorage` on every change; load it back as initial state on mount.
-- **Effort:** S
-- **Files:** `src/context/AudioContext.jsx`
+### 3. ~~Persist settings to `localStorage`~~ ✅ Done
 
 ### 4. Expose tremolo waveform shape in the UI
 The tremolo LFO shape (`sine`, `square`, etc.) is wired in `effectChains.js` but there's no action type, action creator, or UI control for it. Backend is ready — just needs wiring.
@@ -43,20 +43,17 @@ Allow naming and saving the current audio state as a named preset in `localStora
 - **Effort:** M
 - **Files:** `src/context/AudioContext.jsx`, new UI component
 
-### 6. Accessibility: keyboard support + ARIA
-The UI is mouse-only. Add `role="application"`, keyboard handler (`Space` to spawn a ball), and `aria-label` on all sliders and checkboxes.
-- **Effort:** S–M
-- **Files:** `src/components/BouncingCircles/CircleCanvas.jsx`, shared components
+### 6. ~~Accessibility: keyboard support + ARIA~~ ✅ Done
 
 ### 7. Custom favicon and meta tags
 Ships with the default Vite favicon and no `<meta name="description">`. Add a custom favicon and Open Graph tags.
 - **Effort:** XS
 - **Files:** `index.html`
 
-### 8. Add TypeScript
-Migrate incrementally — start with `physics.js`, the AudioContext reducer, and the circle state shape.
-- **Effort:** L (multi-day)
-- **Files:** All source files
+### 8. Continue TypeScript migration
+`AudioContext.tsx` and `sound.ts` are typed with `strict: true`. Remaining JS components (`CircleCanvas.jsx`, shared components, hooks, utils) can be migrated incrementally. Start with `physics.js` and `spatialGrid.js` — pure functions with no DOM deps, easy to type. Then hooks, then components.
+- **Effort:** M per layer (hooks: S, components: M, full: L)
+- **Files:** All remaining `.js`/`.jsx` files
 
 ---
 
