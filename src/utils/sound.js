@@ -246,47 +246,41 @@ export const WAVEFORMS = [
   { id: 'triangle', name: 'Triangle' }
 ];
 
-const NOTE_GROUPS = {
-  WALL_LOW: ['F2', 'G2', 'A2', 'B2', 'C3', 'D3', 'E3'],
-  WALL_MID: ['F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4'],
-  CIRCLE_HIGH: ['F4', 'G4', 'A4', 'B4', 'C5', 'D5', 'E5'],
-  CIRCLE_HIGHER: ['F5', 'G5', 'A5', 'B5', 'C6', 'D6', 'E6']
-};
+/**
+ * Bucket the note keys of a scale by octave group.
+ * Returns { WALL_LOW, WALL_MID, CIRCLE_HIGH, CIRCLE_HIGHER } arrays of note names.
+ * Octave 2   → WALL_LOW
+ * Octave 3   → WALL_MID
+ * Octave 4   → CIRCLE_HIGH
+ * Octave 5+  → CIRCLE_HIGHER
+ */
+const buildNoteGroups = (scaleId) => {
+  const notes = SCALES[scaleId]?.notes ?? {}
+  const groups = { WALL_LOW: [], WALL_MID: [], CIRCLE_HIGH: [], CIRCLE_HIGHER: [] }
+  for (const name of Object.keys(notes)) {
+    const octave = parseInt(name.slice(-1), 10)
+    if (octave === 2)      groups.WALL_LOW.push(name)
+    else if (octave === 3) groups.WALL_MID.push(name)
+    else if (octave === 4) groups.CIRCLE_HIGH.push(name)
+    else if (octave >= 5)  groups.CIRCLE_HIGHER.push(name)
+  }
+  return groups
+}
 
-const C_MAJOR_GROUPS = {
-  WALL_LOW: ['C2', 'E2', 'G2'],
-  WALL_MID: ['C3', 'E3', 'G3'],
-  CIRCLE_HIGH: ['C4', 'E4', 'G4'],
-  CIRCLE_HIGHER: ['C5', 'E5', 'G5']
-};
-
-const A_MINOR_GROUPS = {
-  WALL_LOW: ['A2', 'B2', 'C3', 'D3', 'E3', 'F3', 'G3'],
-  WALL_MID: ['A3', 'B3', 'C4', 'D4', 'E4', 'F4', 'G4'],
-  CIRCLE_HIGH: ['A4', 'B4', 'C5', 'D5', 'E5', 'F5', 'G5'],
-  CIRCLE_HIGHER: ['A5', 'B5', 'C6', 'D6', 'E6', 'F6', 'G6']
-};
+// Cache built groups per scale so we don't rebuild every note
+const noteGroupCache = new Map()
 
 // Current musical scale (used by getRandomNote and playBeep)
 let currentScale = 'C_MAJOR';
 
 const getRandomNote = (group) => {
-  let noteNames;
-  switch (currentScale) {
-    case 'C_MAJOR':
-      noteNames = C_MAJOR_GROUPS[group];
-      break;
-    case 'A_MINOR':
-      noteNames = A_MINOR_GROUPS[group];
-      break;
-    case 'F_LYDIAN':
-      noteNames = NOTE_GROUPS[group];
-      break;
-    default:
-      noteNames = C_MAJOR_GROUPS[group];
+  if (!noteGroupCache.has(currentScale)) {
+    noteGroupCache.set(currentScale, buildNoteGroups(currentScale))
   }
-  const randomNoteName = noteNames[Math.floor(Math.random() * noteNames.length)];
-  return SCALES[currentScale].notes[randomNoteName];
+  const groups = noteGroupCache.get(currentScale)
+  const noteNames = groups[group] ?? groups.WALL_MID
+  const randomNoteName = noteNames[Math.floor(Math.random() * noteNames.length)]
+  return SCALES[currentScale].notes[randomNoteName]
 };
 
 const cleanupAudioNodes = (nodes) => {
