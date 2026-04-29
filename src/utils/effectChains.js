@@ -19,6 +19,41 @@ const createDistortionCurve = (amount = 20) => {
   return curve
 }
 
+/**
+ * Impulse response cache — avoids regenerating the same IR on every note.
+ * Key: `${roomSize.toFixed(3)}-${damping.toFixed(3)}`
+ */
+const irCache = new Map()
+
+/**
+ * Synthesize an exponentially-decaying stereo impulse response.
+ * @param {AudioContext} audioContext
+ * @param {number} roomSize - 0–1; maps to tail length 0.3s–2.5s
+ * @param {number} damping  - 0–1; higher = faster decay within the tail
+ * @returns {AudioBuffer}
+ */
+function buildImpulseResponse(audioContext, roomSize = 0.5, damping = 0.3) {
+  const cacheKey = `${roomSize.toFixed(3)}-${damping.toFixed(3)}`
+  if (irCache.has(cacheKey)) return irCache.get(cacheKey)
+
+  const duration = 0.3 + roomSize * 2.2          // 0.3 – 2.5 s
+  const sampleRate = audioContext.sampleRate
+  const length = Math.ceil(sampleRate * duration)
+  const buffer = audioContext.createBuffer(2, length, sampleRate)
+  const decayRate = 3 + damping * 5              // 3 – 8: higher damping = shorter tail
+
+  for (let channel = 0; channel < 2; channel++) {
+    const data = buffer.getChannelData(channel)
+    for (let i = 0; i < length; i++) {
+      const t = i / sampleRate
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-decayRate * t / duration)
+    }
+  }
+
+  irCache.set(cacheKey, buffer)
+  return buffer
+}
+
 class EffectChain {
   constructor(audioContext, type = 'default') {
     this.audioContext = audioContext
@@ -39,7 +74,7 @@ class EffectChain {
    *   oscillator → input (volume envelope)
    *     → tremoloLFO (gain=1 bypass, or LFO-modulated when tremolo enabled)
    *     → distortionDry (+) waveshaper→distortionMix   → reverbInput (post-distortion bus)
-   *     → reverbDry (+) reverb1/reverb2→reverbMix      → tremoloMix (post-reverb bus)
+   *     → reverbDry (+) convolver→reverbMix            → tremoloMix (post-reverb bus)
    *     → delayDry (+) delayInput→delay→delayWet       → pan → output
    */
   initChain() {
@@ -62,13 +97,11 @@ class EffectChain {
       this.nodes.distortionMix = pool.getNode('gain')   // wet path
       this.nodes.distortionDry = pool.getNode('gain')   // dry path
 
-      // Reverb section (2-line comb reverb)
+      // Reverb section (ConvolverNode — synthesized impulse response)
       // reverbInput serves as the post-distortion summing bus
       this.nodes.reverbInput = pool.getNode('gain')
-      this.nodes.reverb1 = pool.getNode('delay')
-      this.nodes.reverbFeedback1 = pool.getNode('gain')
-      this.nodes.reverb2 = pool.getNode('delay')
-      this.nodes.reverbFeedback2 = pool.getNode('gain')
+      // ConvolverNode created directly — needs a buffer, can't come from the pool
+      this.nodes.convolver = this.audioContext.createConvolver()
       this.nodes.reverbMix = pool.getNode('gain')       // wet path
       this.nodes.reverbDry = pool.getNode('gain')       // dry path
 
@@ -115,15 +148,9 @@ class EffectChain {
       // — Reverb section —
       // dry path
       n.reverbInput.connect(n.reverbDry)
-      // wet path: two comb filter delay lines with feedback
-      n.reverbInput.connect(n.reverb1)
-      n.reverb1.connect(n.reverbFeedback1)
-      n.reverbFeedback1.connect(n.reverb1)    // feedback loop
-      n.reverb1.connect(n.reverbMix)
-      n.reverbInput.connect(n.reverb2)
-      n.reverb2.connect(n.reverbFeedback2)
-      n.reverbFeedback2.connect(n.reverb2)    // feedback loop
-      n.reverb2.connect(n.reverbMix)
+      // wet path: convolution reverb (buffer set per-note in configure())
+      n.reverbInput.connect(n.convolver)
+      n.convolver.connect(n.reverbMix)
       // both paths sum at tremoloMix (post-reverb bus)
       n.reverbDry.connect(n.tremoloMix)
       n.reverbMix.connect(n.tremoloMix)
@@ -152,14 +179,8 @@ class EffectChain {
         { from: n.distortionDry, to: n.reverbInput },
         { from: n.distortionMix, to: n.reverbInput },
         { from: n.reverbInput, to: n.reverbDry },
-        { from: n.reverbInput, to: n.reverb1 },
-        { from: n.reverb1, to: n.reverbFeedback1 },
-        { from: n.reverbFeedback1, to: n.reverb1 },
-        { from: n.reverb1, to: n.reverbMix },
-        { from: n.reverbInput, to: n.reverb2 },
-        { from: n.reverb2, to: n.reverbFeedback2 },
-        { from: n.reverbFeedback2, to: n.reverb2 },
-        { from: n.reverb2, to: n.reverbMix },
+        { from: n.reverbInput, to: n.convolver },
+        { from: n.convolver, to: n.reverbMix },
         { from: n.reverbDry, to: n.tremoloMix },
         { from: n.reverbMix, to: n.tremoloMix },
         { from: n.tremoloMix, to: n.delayDry },
@@ -245,24 +266,16 @@ class EffectChain {
         }
       }
 
-      // — Reverb (2-line comb filter) —
+      // — Reverb (ConvolverNode) —
       if (settings.reverb) {
         const { enabled, roomSize, damping, mix } = settings.reverb
         if (enabled) {
+          n.convolver.buffer = buildImpulseResponse(this.audioContext, roomSize, damping)
           n.reverbDry.gain.setValueAtTime(1 - mix, t)
-          n.reverb1.delayTime.setValueAtTime(0.03, t)
-          n.reverbFeedback1.gain.setValueAtTime(roomSize * 0.4, t)
-          n.reverb2.delayTime.setValueAtTime(0.07, t)
-          n.reverbFeedback2.gain.setValueAtTime(roomSize * 0.3, t)
-          // 2 lines vs original's 4 — scale wet by 0.5; damping reduces high-freq content via gain
-          n.reverbMix.gain.setValueAtTime(mix * 0.5 * (1 - damping * 0.5), t)
+          n.reverbMix.gain.setValueAtTime(mix, t)
         } else {
           n.reverbDry.gain.setValueAtTime(1, t)
-          n.reverbFeedback1.gain.setValueAtTime(0, t)
-          n.reverbFeedback2.gain.setValueAtTime(0, t)
           n.reverbMix.gain.setValueAtTime(0, t)
-          n.reverb1.delayTime.setValueAtTime(0, t)
-          n.reverb2.delayTime.setValueAtTime(0, t)
         }
       }
 
@@ -359,11 +372,7 @@ class EffectChain {
       n.distortionMix.gain.setValueAtTime(0, t)    // no wet
 
       n.reverbDry.gain.setValueAtTime(1, t)        // full dry (bypass)
-      n.reverbFeedback1.gain.setValueAtTime(0, t)  // no feedback
-      n.reverbFeedback2.gain.setValueAtTime(0, t)
       n.reverbMix.gain.setValueAtTime(0, t)        // no wet
-      n.reverb1.delayTime.setValueAtTime(0, t)
-      n.reverb2.delayTime.setValueAtTime(0, t)
 
       n.tremoloMix.gain.setValueAtTime(1, t)       // bus, always unity
 
@@ -403,10 +412,6 @@ class EffectChain {
           distortionMix: 'gain',
           distortionDry: 'gain',
           reverbInput: 'gain',
-          reverb1: 'delay',
-          reverbFeedback1: 'gain',
-          reverb2: 'delay',
-          reverbFeedback2: 'gain',
           reverbMix: 'gain',
           reverbDry: 'gain',
           tremoloMix: 'gain',
@@ -421,6 +426,12 @@ class EffectChain {
             pool.releaseNode(node, nodeTypes[nodeName])
           }
         })
+      }
+
+      // ConvolverNode was created directly, not from the pool — disconnect manually
+      if (this.nodes.convolver) {
+        try { this.nodes.convolver.disconnect() } catch { /* already disconnected */ }
+        this.nodes.convolver = null
       }
 
       this.nodes = {}
