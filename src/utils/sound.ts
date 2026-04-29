@@ -303,8 +303,9 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
 
   if (!effectChain) {
     console.warn('No effect chain available, falling back to basic sound');
-    const gainNode = pool.getNode('gain');
-    const panNode = pool.getNode('stereoPanner');
+    const gainNode = pool.getNode('gain') as GainNode | null;
+    const panNode = pool.getNode('stereoPanner') as StereoPannerNode | null;
+    if (!gainNode || !panNode) return;
 
     oscillator.connect(gainNode);
     gainNode.connect(panNode);
@@ -330,7 +331,7 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
   // Build effect chain config directly from the React state settings object
   const delay = soundSettings?.delay ?? { enabled: false, time: 0.3, feedback: 0.3, mix: 0.3 };
   const reverb = soundSettings?.reverb ?? { enabled: false, roomSize: 0.5, damping: 0.3, mix: 0.3 };
-  const distortion = soundSettings?.distortion ?? { enabled: false, amount: 0.5, mix: 0.3 };
+  const distortion = soundSettings?.distortion ?? { enabled: false, amount: 0.5, oversample: '2x' as const, mix: 0.3 };
   const tremolo = soundSettings?.tremolo ?? { enabled: false, rate: 4.0, depth: 0.5, mix: 0.5 };
 
   const activeEffectCount = [delay.enabled, reverb.enabled, distortion.enabled, tremolo.enabled]
@@ -345,7 +346,7 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
     delay,
     reverb,
     distortion,
-    tremolo: { ...tremolo, shape: tremolo.shape ?? 'sine', duration }
+    tremolo: { ...tremolo, shape: tremolo.shape ?? 'sine' } as import('../types/audio').TremoloSettings,
   });
 
   // Connect oscillator to effect chain

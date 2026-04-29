@@ -69,6 +69,8 @@ export default [
       // The base no-unused-vars rule false-positives on TS interface parameter names;
       // tsc enforces this via noUnusedLocals / noUnusedParameters instead.
       'no-unused-vars': 'off',
+      // PropTypes are redundant when TypeScript interfaces are in use
+      'react/prop-types': 'off',
     },
   },
 ]

@@ -1,48 +1,34 @@
-// @ts-nocheck
-import PropTypes from 'prop-types'
 import WallControls from './WallControls'
 import CircleControls from './CircleControls'
 import GlobalControls from './GlobalControls'
 import { useAudio } from '../../../context/AudioContext'
 import Button from '../../shared/Button'
 
-/**
- * Container component for all audio controls
- *
- * @param {Object} props - Component props
- * @param {boolean} props.visible - Whether the controls are visible
- * @param {number} props.speed - Current ball speed value
- * @param {Function} props.setSpeed - Function to update ball speed
- */
-export default function AudioControls({ visible, speed, setSpeed }) {
+interface AudioControlsProps {
+  visible: boolean
+  speed: number
+  setSpeed: (speed: number) => void
+}
+
+export default function AudioControls({ visible, speed, setSpeed }: AudioControlsProps) {
   const { resetAllControls } = useAudio()
 
   if (!visible) return null
 
-  const handleResetControls = () => {
-    resetAllControls()
-  }
-
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '6px'
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       <GlobalControls speed={speed} setSpeed={setSpeed} />
-
       <CircleControls />
       <WallControls />
 
-      {/* Reset Controls Button */}
       <div style={{
         padding: '0px',
         backgroundColor: 'rgba(0, 0, 0, 0.0)',
         borderRadius: '4px',
-        marginBottom: '4px'
+        marginBottom: '4px',
       }}>
         <Button
-          onClick={handleResetControls}
+          onClick={resetAllControls}
           style={{
             backgroundColor: 'transparent',
             color: '#6b21a8',
@@ -55,7 +41,7 @@ export default function AudioControls({ visible, speed, setSpeed }) {
             gap: '8px',
             position: 'relative',
             overflow: 'hidden',
-            transition: 'all 0.3s ease'
+            transition: 'all 0.3s ease',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = '#6b21a8'
@@ -71,10 +57,4 @@ export default function AudioControls({ visible, speed, setSpeed }) {
       </div>
     </div>
   )
-}
-
-AudioControls.propTypes = {
-  visible: PropTypes.bool.isRequired,
-  speed: PropTypes.number.isRequired,
-  setSpeed: PropTypes.func.isRequired
 }
