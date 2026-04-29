@@ -630,6 +630,38 @@ function audioReducer(state, action) {
   }
 }
 
+const STORAGE_KEY = 'oscillaphone_audio_settings'
+
+/**
+ * Load persisted state from localStorage, deep-merged with initialState so any
+ * keys added in future code are always present even if the stored object is old.
+ */
+function loadPersistedState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw) return initialState
+    const saved = JSON.parse(raw)
+    return {
+      ...initialState,
+      ...saved,
+      wallSettings: { ...initialState.wallSettings, ...saved.wallSettings,
+        delay:      { ...initialState.wallSettings.delay,      ...saved.wallSettings?.delay },
+        reverb:     { ...initialState.wallSettings.reverb,     ...saved.wallSettings?.reverb },
+        distortion: { ...initialState.wallSettings.distortion, ...saved.wallSettings?.distortion },
+        tremolo:    { ...initialState.wallSettings.tremolo,    ...saved.wallSettings?.tremolo },
+      },
+      circleSettings: { ...initialState.circleSettings, ...saved.circleSettings,
+        delay:      { ...initialState.circleSettings.delay,      ...saved.circleSettings?.delay },
+        reverb:     { ...initialState.circleSettings.reverb,     ...saved.circleSettings?.reverb },
+        distortion: { ...initialState.circleSettings.distortion, ...saved.circleSettings?.distortion },
+        tremolo:    { ...initialState.circleSettings.tremolo,    ...saved.circleSettings?.tremolo },
+      },
+    }
+  } catch {
+    return initialState
+  }
+}
+
 // Exported for unit testing
 export { audioReducer, initialState, ActionTypes }
 
@@ -638,8 +670,15 @@ const AudioContext = createContext()
 
 // Provider component
 export function AudioProvider({ children }) {
-  const [state, dispatch] = useReducer(audioReducer, initialState)
-  
+  const [state, dispatch] = useReducer(audioReducer, undefined, loadPersistedState)
+
+  // Persist state to localStorage on every change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+    } catch { /* storage unavailable (private browsing quota) */ }
+  }, [state])
+
   // Initialize audio context on mount
   useEffect(() => {
     // Initialize the audio context
