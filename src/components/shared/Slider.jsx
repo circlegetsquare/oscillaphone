@@ -62,6 +62,8 @@ export default function Slider({
         step={step}
         value={value}
         onChange={handleChange}
+        aria-label={label}
+        aria-valuetext={formatValue(value)}
         style={{ ...sliderStyles, ...sliderStyle }}
       />
     </div>

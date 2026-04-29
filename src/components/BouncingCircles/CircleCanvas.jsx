@@ -564,58 +564,33 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
    * Handle mouse down event to create a new circle
    * @param {React.MouseEvent} e - Mouse event
    */
-  const handleMouseDown = useCallback((e) => {
+  // Spawn a ball at a given canvas-relative position
+  const spawnBallAt = useCallback((x, y) => {
     if (!containerRef.current) return
-    
-    const bounds = containerRef.current.getBoundingClientRect()
-    const id = Date.now().toString()
     const angle = Math.random() * 360
     const size = generateRandomSize()
     const color = generateRandomColor()
-    
-    // Add color to palette
     addToColorPalette(color)
-    
-    // Calculate initial velocities with the current speed setting
     const radians = (angle * Math.PI) / 180
+    const id = Date.now().toString()
     const initialState = {
-      x: e.clientX - bounds.left,
-      y: e.clientY - bounds.top,
+      x,
+      y,
       vx: Math.cos(radians) * initialSpeed,
       vy: Math.sin(radians) * initialSpeed,
       radius: size / 2,
       color
     }
-    
-    // Initialize circle in physics system
     initCircle(id, initialState)
-
-    // Add circle to render state for React rendering
     addCircleToRender(id, initialState)
-    
-    // Wait for the next render to get the circle element
     requestAnimationFrame(() => {
       const circleEl = circleRefs.current.get(id)
       if (!circleEl) return
-      
-      // Set initial position
-      gsap.set(circleEl, {
-        xPercent: -50,
-        yPercent: -50,
-        x: initialState.x,
-        y: initialState.y,
-        transformOrigin: "center center"
-      })
-      
-      // Track last wall collision time
-      const lastWallCollisionTime = { x: 0, y: 0 };
-      // Cooldown period in milliseconds
-      const WALL_COLLISION_COOLDOWN = 300;
-      
-      // Create ticker function for continuous animation
+      gsap.set(circleEl, { xPercent: -50, yPercent: -50, x, y, transformOrigin: 'center center' })
+      const lastWallCollisionTime = { x: 0, y: 0 }
+      const WALL_COLLISION_COOLDOWN = 300
       const tickerFunction = () => {
         if (!containerRef.current) return
-        
         const bounds = containerRef.current.getBoundingClientRect()
         const currentState = getCircleState(id)
         if (!currentState) return
@@ -714,7 +689,24 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
       addTicker(id, tickerFunction)
     })
   }, [initialSpeed, generateRandomSize, generateRandomColor, addToColorPalette, initCircle, getCircleState, updateCircleState, handleWallCollision, addTicker, playSquishAnimation, addCircleToRender])
-  
+
+  // Pointer handler — spawn ball at click/touch position
+  const handleMouseDown = useCallback((e) => {
+    if (!containerRef.current) return
+    const bounds = containerRef.current.getBoundingClientRect()
+    spawnBallAt(e.clientX - bounds.left, e.clientY - bounds.top)
+  }, [spawnBallAt])
+
+  // Keyboard handler — Space spawns a ball at the center of the canvas
+  const handleKeyDown = useCallback((e) => {
+    if (e.code === 'Space' || e.key === ' ') {
+      e.preventDefault()
+      if (!containerRef.current) return
+      const { width, height } = containerRef.current.getBoundingClientRect()
+      spawnBallAt(width / 2, height / 2)
+    }
+  }, [spawnBallAt])
+
   // Track last collision time for each pair of circles using a ref to persist across re-renders
   const lastCollisionTimes = useRef(new Map());
   // Cooldown period in milliseconds
@@ -799,7 +791,11 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
     <>
       <div
         ref={containerRef}
+        role="application"
+        aria-label="Oscillaphone canvas — click or press Space to spawn a ball"
+        tabIndex={0}
         onPointerDown={handleMouseDown}
+        onKeyDown={handleKeyDown}
         style={{
           position: 'fixed',
           top: 0,
@@ -811,7 +807,8 @@ export default function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }) 
           zIndex: 9999,
           overflow: 'hidden',
           userSelect: 'none',
-          touchAction: 'none'
+          touchAction: 'none',
+          outline: 'none'
         }}
       >
         <style>
