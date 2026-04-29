@@ -188,7 +188,7 @@ export const SCALES = {
     }
   },
   A_PENTATONIC_MINOR: {
-    name: "Penta Minor",
+    name: "A Pent Min",
     notes: {
       // 2nd octave (wall collisions)
       A2: 110.00, C3: 130.81, D3: 146.83, E3: 164.81, G3: 196.00,
@@ -201,7 +201,7 @@ export const SCALES = {
     }
   },
   C_PENTATONIC_MAJOR: {
-    name: "Penta Major",
+    name: "C Pent Maj",
     notes: {
       // 2nd octave (wall collisions)
       C2: 65.41, D2: 73.42, E2: 82.41, G2: 98.00, A2: 110.00,
