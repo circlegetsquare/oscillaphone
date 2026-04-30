@@ -319,11 +319,10 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
 
     oscillator.start(currentTime);
     oscillator.stop(currentTime + duration);
-
-    setTimeout(() => {
+    oscillator.onended = () => {
       pool.releaseNode(gainNode, 'gain');
       pool.releaseNode(panNode, 'stereoPanner');
-    }, (duration + 0.1) * 1000);
+    };
 
     return;
   }
@@ -356,15 +355,16 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
   // Start and stop oscillator
   const currentTime = ctx.currentTime;
   oscillator.start(currentTime);
-  oscillator.stop(currentTime + duration);
 
-  // Schedule cleanup — extend timeout to cover reverb/delay tails
+  // Sample-accurate cleanup tied to oscillator end (covers reverb/delay tails).
+  // Using onended avoids wall-clock setTimeout drift and orphan timers on unmount.
   const reverbTailTime = reverb.enabled ? 2.0 : 0;
   const delayTailTime = delay.enabled ? delay.time * 4 : 0;
   const tailTime = Math.max(reverbTailTime, delayTailTime);
-  setTimeout(() => {
+  oscillator.stop(currentTime + duration + tailTime);
+  oscillator.onended = () => {
     chainPool.releaseChain(effectChain);
-  }, (duration + tailTime + 0.1) * 1000);
+  };
 };
 
 // Convert x position to pan value (-1 to 1)
@@ -401,9 +401,9 @@ export const setScale = (scale: string): void => {
 
 // Global master volume control — directly manipulates the audio graph node
 export const setGlobalVolume = (volume: number): void => {
-  if (globalMaster) {
+  if (globalMaster && audioContext) {
     const clampedVolume = Math.max(0, Math.min(1.0, volume));
-    globalMaster.gain.setValueAtTime(clampedVolume, audioContext!.currentTime);
+    globalMaster.gain.setValueAtTime(clampedVolume, audioContext.currentTime);
   }
 };
 
