@@ -124,11 +124,6 @@ Ships with the default Vite favicon and no `<meta name="description">`. Add a cu
 - **Effort:** XS
 - **Files:** [index.html](../index.html)
 
-### 6. Make Space-to-spawn consistent with click
-Currently Space spawns at a random position; click spawns at the click point. Pick one model (center, last pointer, or random) and apply consistently.
-- **Effort:** XS
-- **Files:** [src/components/BouncingCircles/CircleCanvas.tsx](../src/components/BouncingCircles/CircleCanvas.tsx)
-
 ---
 
 ## Effort key

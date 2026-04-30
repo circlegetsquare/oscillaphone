@@ -226,7 +226,6 @@ See `.docs/BACKLOG.md` for full descriptions.
 - **P4-3**: Tremolo waveform shape UI (backend already accepts `tremolo.shape`)
 - **P4-4**: Audio settings preset system
 - **P4-5**: Custom favicon and OG meta tags
-- **P4-6**: Make Space-to-spawn consistent with click position
 
 ---
 
