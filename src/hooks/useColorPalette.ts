@@ -31,7 +31,7 @@ export function useColorPalette(initialCount = 3, maxColors = 10) {
     const gradientColors = colors.map(color => {
       const match = color.match(/\d+/g) ?? ['0', '70', '50']
       const [h, s, l] = match
-      return `hsla(${h}, ${s}%, ${l}%, 0.7)`
+      return `hsla(${h}, ${s}%, ${l}%, 0.45)`
     })
 
     const angles = gradientColors.map((_, i) => {

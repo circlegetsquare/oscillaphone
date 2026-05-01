@@ -196,7 +196,7 @@ interface CircleCanvasProps {
 
 ## Project Status
 
-Full, ranked backlog lives in [.docs/BACKLOG.md](../.docs/BACKLOG.md). Snapshot review of architecture and gaps in [.docs/REVIEW.md](../.docs/REVIEW.md) (third pass, April 2026).
+Full, ranked backlog lives in [.docs/BACKLOG.md](../.docs/BACKLOG.md). Snapshot reviews of architecture and gaps in [.docs/REVIEW.md](../.docs/REVIEW.md) (third pass, April 2026) and [.docs/REVIEW-2026-04-29.md](../.docs/REVIEW-2026-04-29.md) (fourth pass, post-A3/A13).
 
 ### Current baseline
 `tsc --noEmit` passes · `npm run lint` 0 errors / 3 warnings (known, intentional) · `npm test` 62/62 · production build 306 kB JS.
@@ -226,7 +226,6 @@ See `.docs/BACKLOG.md` for full descriptions.
 - **P4-3**: Tremolo waveform shape UI (backend already accepts `tremolo.shape`)
 - **P4-4**: Audio settings preset system
 - **P4-5**: Custom favicon and OG meta tags
-- **P4-6**: Make Space-to-spawn consistent with click position
 
 ---
 

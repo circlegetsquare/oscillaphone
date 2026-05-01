@@ -21,8 +21,12 @@ export const getCircleDistance = (x1: number, y1: number, x2: number, y2: number
 
 /**
  * Resolve an elastic collision between two circles by mutating both states.
+ * Mass scales with radius^MASS_EXPONENT, so larger balls hit harder and shove
+ * smaller ones around. 1.0 = linear (gentle), 2.0 = area (extreme).
  * Skips if circles are already moving apart.
  */
+const MASS_EXPONENT = 1.5
+
 export const resolveCollision = (circle1: CircleState, circle2: CircleState): void => {
   const dx = circle2.x - circle1.x
   const dy = circle2.y - circle1.y
@@ -42,22 +46,28 @@ export const resolveCollision = (circle1: CircleState, circle2: CircleState): vo
   // Don't collide if circles are already moving apart
   if (vnDot > 0) return
 
+  // Mass scaled by radius^MASS_EXPONENT (constants cancel from the impulse formula).
+  const m1 = Math.pow(circle1.radius, MASS_EXPONENT)
+  const m2 = Math.pow(circle2.radius, MASS_EXPONENT)
+  const invMassSum = 1 / m1 + 1 / m2
+
   // Elastic collision impulse (restitution coefficient 0.9)
-  const impulse = -(1 + 0.9) * vnDot / 2
+  const impulse = -(1 + 0.9) * vnDot / invMassSum
 
-  circle1.vx -= impulse * nx
-  circle1.vy -= impulse * ny
-  circle2.vx += impulse * nx
-  circle2.vy += impulse * ny
+  circle1.vx -= (impulse / m1) * nx
+  circle1.vy -= (impulse / m1) * ny
+  circle2.vx += (impulse / m2) * nx
+  circle2.vy += (impulse / m2) * ny
 
-  // Separate overlapping circles
+  // Separate overlapping circles, splitting inversely to mass (heavy moves less)
   const overlap = (circle1.radius + circle2.radius) - distance
   if (overlap > 0) {
-    const moveX = (overlap * nx) / 2
-    const moveY = (overlap * ny) / 2
-    circle1.x -= moveX
-    circle1.y -= moveY
-    circle2.x += moveX
-    circle2.y += moveY
+    const totalMass = m1 + m2
+    const move1 = overlap * (m2 / totalMass)
+    const move2 = overlap * (m1 / totalMass)
+    circle1.x -= move1 * nx
+    circle1.y -= move1 * ny
+    circle2.x += move2 * nx
+    circle2.y += move2 * ny
   }
 }

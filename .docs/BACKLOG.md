@@ -124,10 +124,53 @@ Ships with the default Vite favicon and no `<meta name="description">`. Add a cu
 - **Effort:** XS
 - **Files:** [index.html](../index.html)
 
-### 6. Make Space-to-spawn consistent with click
-Currently Space spawns at a random position; click spawns at the click point. Pick one model (center, last pointer, or random) and apply consistently.
-- **Effort:** XS
-- **Files:** [src/components/BouncingCircles/CircleCanvas.tsx](../src/components/BouncingCircles/CircleCanvas.tsx)
+---
+
+## 🟣 P5 — From fourth-pass review (April 29 2026)
+
+Full descriptions in [REVIEW-2026-04-29.md](./REVIEW-2026-04-29.md).
+
+### Top recommendations
+
+- **R2** — Cache container bounds; stop calling `getBoundingClientRect()` in the hot path. Biggest perf win. **XS**
+- **B2** — Replace cleanup `setTimeout` in `createOptimizedBeep` with `oscillator.onended`. Subsumes B1 (orphan-timer leak). **XS**
+- **E1** — Extract `playGlow` + unified `playSquish` from `CircleCanvas`. Cuts ~150 lines of duplication. **S–M**
+
+### Code economy
+- **E2** — Generate `AudioContext` named setters from a path manifest (~80 lines → ~20). **S**
+- **E3** — Collapse `WallControls` + `CircleControls` (95% identical) into one scoped component. **S**
+- **E4** — Replace per-method try/catch noise in `effectChains.ts` with `safeDisconnect`/`safeStop` helpers. **XS**
+- **E5** — Replace 18-line manual deep-merge in `loadPersistedState` with a 4-line generic `deepMerge`. **XS**
+- **E6** — Track active-node types explicitly in `AudioNodePool` (avoids fragile `constructor.name` filtering). **XS**
+
+### Runtime efficiency
+- **R1** — Drop the inner rAF wrapper from the no-balls busy-wait. **XS**
+- **R3** — Use the rAF callback's timestamp argument instead of per-frame `Date.now()`. **XS**
+- **R4** — Skip `renderCircles` Map clone-on-spawn (mutate or use a plain array). **S**
+- **R5** — Pass ball color through the collision event; remove `getComputedStyle` from the hot path. **XS**
+- **R7** — Replace per-frame `gsap.set(x, y)` with direct `el.style.transform`. Keep GSAP for squish/glow. **S**
+- **R9** — Cache the distortion `Float32Array` curve by amount key (mirror the IR cache). **XS**
+- **R10** — `EffectChainPool` overflow chains can grow `availableChains` past `poolSize` permanently. **XS**
+
+### Robustness
+- **B3** — `setGlobalVolume` reads `audioContext!.currentTime` without a null guard. **XS**
+- **B5** — `lastCollisionTimes` prune is O(n) per `removeBall`; use `Map<id, Set<otherId>>`. **S**
+- **B6** — Add a React error boundary around `<BouncingCircles>`. **XS**
+- **B7** — Validate the shape of `localStorage` payloads in `loadPersistedState` (~10 lines of guards). **XS**
+- **B8** — Replace `${Date.now()}-${ballIdsRef.current.length}` with a monotonic counter; current scheme can collide post-eviction. **XS**
+- **B9** — Add `import.meta.hot.dispose(cleanupAudio)` so HMR doesn't orphan AudioContexts. **XS**
+- **B10** — Use `new Float32Array(new ArrayBuffer(...))` for the distortion curve; drop the `unknown as Float32Array<ArrayBuffer>` double cast. **XS**
+
+### Gaps
+- **G1** — Add tests for `loadPersistedState`, `setIn`, `useColorPalette.generateGradient`; add a `<AudioProvider>` mount/unmount integration test. **M**
+- **G2** — Add a CI bundle-size budget (~350 kB ceiling on `dist/assets/index-*.js`). **XS**
+- **G3** — Replace GSAP with a custom rAF tweener if bundle size matters (~50 kB gz savings). **L**
+- **G4** — Wrap as a PWA via `vite-plugin-pwa`. **S**
+- **G5** — Add error reporting (Sentry free tier or webhook). **S**
+- **G6** — A11y: `role="region"` + focus management on the controls panel; respect `prefers-reduced-motion`. **S**
+- **G7** — Add `prettier` config + pre-commit hook to standardize style. **XS**
+- **G8** — Re-pin `typescript` to a stable 5.x line if 6.x bleeding-edge isn't intentional. **XS**
+- **G10** — Remove the unused `onBackgroundChange` prop from `CircleCanvas` (or wire it). **XS**
 
 ---
 
