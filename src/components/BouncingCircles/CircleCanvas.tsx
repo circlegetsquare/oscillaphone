@@ -316,14 +316,19 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
    * fading as it grows. Velocity scales radius and opacity.
    */
   const playShockwave = useCallback(
-    (x: number, y: number, color: string, velocity: number) => {
+    (x: number, y: number, color: string, velocity: number, startRadius: number) => {
       const container = containerRef.current
       if (!container) return
 
-      const t = Math.min(Math.max((Math.abs(velocity) - 5) / 20, 0), 1)
-      const maxDiameter = (35 + t * 65) * 2  // radius 35→100px
-      const duration    = 0.3 + t * 0.3        // 0.3→0.6s
-      const startOpacity = 0.7 + t * 0.3      // 0.7→1.0
+      if (Math.abs(velocity) < 0) return
+      const t = Math.min(Math.max((Math.abs(velocity) - 3) / 17, 0), 1)
+      // Ring starts at the outer edge of both balls and expands from there
+      const startDiameter = startRadius * 2
+      const extraRadius   = 25 + t * 75        // 25→100px of travel beyond the balls
+      const maxDiameter   = startDiameter + extraRadius * 2
+      const duration      = 0.18 + t * 0.42    // 0.18→0.60s
+      const startOpacity  = 0.35 + t * 0.65    // 0.35→1.0
+      const borderWidth   = 1.0 + t * 3.0      // 1.0→4px
 
       const ring = document.createElement('div')
       ring.style.cssText = [
@@ -333,7 +338,7 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
         'width:2px',
         'height:2px',
         'border-radius:50%',
-        `border:1.5px solid ${color}`,
+        `border:${borderWidth.toFixed(1)}px solid ${color}`,
         'transform:translate(-50%,-50%)',
         'pointer-events:none',
         'will-change:transform,opacity',
@@ -341,7 +346,7 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
       container.appendChild(ring)
       shockwaveElements.current.add(ring)
 
-      gsap.set(ring, { width: 0, height: 0, opacity: startOpacity })
+      gsap.set(ring, { width: startDiameter, height: startDiameter, opacity: startOpacity })
       gsap.to(ring, {
         width: maxDiameter,
         height: maxDiameter,
@@ -358,40 +363,26 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
   )
 
   /**
-   * Fill flash on collision. At low velocity the ball flashes a brighter
-   * version of its own color; at high velocity it ramps toward white.
-   * Velocity factor drives both the color-to-white lerp and the fade duration.
+   * Fill flash on collision. Uses CSS `filter: brightness()` so the flash
+   * affects the entire ball (fill, border, inset glow) and can't be masked
+   * by the box-shadow from playGlow. Velocity scales peak brightness and
+   * fade duration; hard hits ramp toward near-white.
    */
   const flashTweenRef = useRef(new WeakMap<HTMLDivElement, gsap.core.Tween>())
   const playFillFlash = useCallback(
-    (el: HTMLDivElement, color: string, velocity: number) => {
+    (el: HTMLDivElement, _color: string, velocity: number) => {
       const t = Math.min(Math.max((Math.abs(velocity) - 5) / 20, 0), 1)
-      const fadeDuration = 0.30 + t * 0.40    // 0.30→0.70s
-      const peakAlpha    = 0.70 + t * 0.25    // 0.70→0.95
-
-      const baseRGBA = convertHSLToRGBA(color)
-
-      // Parse the r, g, b from the base rgba string
-      const match = baseRGBA.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
-      const r = match ? Number(match[1]) : 180
-      const g = match ? Number(match[2]) : 180
-      const b = match ? Number(match[3]) : 180
-
-      // Lerp each channel toward 255 (white) based on velocity
-      const whiteness = t * 0.85  // 0→0.85 — never fully white, keeps a hint of color
-      const pr = Math.round(r + (255 - r) * whiteness)
-      const pg = Math.round(g + (255 - g) * whiteness)
-      const pb = Math.round(b + (255 - b) * whiteness)
-      const peakRGBA = `rgba(${pr}, ${pg}, ${pb}, ${peakAlpha.toFixed(2)})`
+      const peakBrightness = 1.5 + t * 2.0    // 1.5× soft → 3.5× hard
+      const fadeDuration   = 0.25 + t * 0.45   // 0.25s soft → 0.70s hard
 
       // Kill only the previous fill-flash tween, not squish/glow
       flashTweenRef.current.get(el)?.kill()
 
       const tween = gsap.fromTo(
         el,
-        { backgroundColor: peakRGBA },
+        { filter: `brightness(${peakBrightness})` },
         {
-          backgroundColor: baseRGBA,
+          filter: 'brightness(1)',
           duration: fadeDuration,
           ease: 'power2.out',
           onComplete: () => { flashTweenRef.current.delete(el) },
@@ -726,7 +717,7 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
             const dvx0 = (state2.vx) - (state1.vx)
             const dvy0 = (state2.vy) - (state1.vy)
             const rv = Math.sqrt(dvx0 * dvx0 + dvy0 * dvy0)
-            playShockwave(collisionPoint.x, collisionPoint.y, state1.color, rv)
+            playShockwave(collisionPoint.x, collisionPoint.y, state1.color, rv, state1.radius + state2.radius)
           }
 
           if (timeSinceLast > COLLISION_COOLDOWN) {
@@ -763,7 +754,7 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: '#1a1a1a',
+          backgroundColor: '#05080f',
           cursor: 'pointer',
           zIndex: 9999,
           overflow: 'hidden',
