@@ -18,10 +18,10 @@ import type { SoundSettings } from '../../types/audio'
 const SQUISH_LIMITS = {
   MIN_VELOCITY: 5,
   MAX_VELOCITY: 30,
-  MIN_COMPRESS: 0.9,
-  MAX_COMPRESS: 0.6,
-  MIN_STRETCH: 1.05,
-  MAX_STRETCH: 1.2,
+  MIN_COMPRESS: 0.90,
+  MAX_COMPRESS: 0.67,
+  MIN_STRETCH: 1.06,
+  MAX_STRETCH: 1.22,
 } as const
 
 const mapVelocityToSquish = (velocity: number, minVal: number, maxVal: number): number => {
@@ -93,7 +93,7 @@ const Circle = memo<CircleProps>(({ id, state, onRef }) => {
         height: `${state.radius * 2}px`,
         borderRadius: '50%',
         color: state.color,
-        border: `2px solid ${state.color}`,
+        border: `1px solid ${state.color}`,
         backgroundColor,
         boxShadow: '0 0 0px 0px',
         animationFillMode: 'forwards',
@@ -140,6 +140,8 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
   const circleRefs      = useRef(new Map<string, HTMLDivElement>())
   const squishAnimations = useRef(new Map<HTMLDivElement, SquishData>())
   const glowAnimations  = useRef(new Map<HTMLDivElement, gsap.core.Tween>())
+  /** Set of active shockwave ring divs; used for cleanup on unmount. */
+  const shockwaveElements = useRef(new Set<HTMLDivElement>())
   /** FIFO queue of spawned ball ids; used for MAX_BALLS eviction */
   const ballIdsRef      = useRef<string[]>([])
   /** Per-pair collision cooldown tracking */
@@ -231,12 +233,15 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
     }
 
     const intervalId = setInterval(cleanupAnimations, CLEANUP_INTERVAL)
+    const shockwaves = shockwaveElements.current
     return () => {
       clearInterval(intervalId)
       squishAnim.forEach(data => data.timeline.kill())
       squishAnim.clear()
       glowAnim.forEach(tween => { if (tween) tween.kill() })
       glowAnim.clear()
+      shockwaves.forEach(el => { gsap.killTweensOf(el); el.remove() })
+      shockwaves.clear()
     }
   }, [])
 
@@ -250,7 +255,7 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
     return () => window.removeEventListener('resize', handleResize)
   }, [updateSpatialGrid])
 
-  const generateRandomSize = useCallback((): number => 30 + Math.random() * 60, [])
+  const generateRandomSize = useCallback((): number => 40 + Math.random() * 50, [])
 
   const addCircleToRender = useCallback((id: string, state: Pick<CircleState, 'color' | 'radius'>) => {
     setRenderCircles(prev => new Map(prev).set(id, state))
@@ -306,38 +311,158 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
     [renderCircles, handleCircleRef]
   )
 
-  /** Trigger an inset glow on a single circle. Used by both wall and ball collisions. */
-  const playGlow = useCallback((el: HTMLDivElement, color: string, radius: number) => {
-    const glowSpread = Math.max(8, radius * 0.8)
-    const glowBlur   = Math.max(2, radius * 0.2)
+  /**
+   * Expanding ring at the collision point. Radiates outward from (x, y),
+   * fading as it grows. Velocity scales radius and opacity.
+   */
+  const playShockwave = useCallback(
+    (x: number, y: number, color: string, velocity: number) => {
+      const container = containerRef.current
+      if (!container) return
 
-    glowAnimations.current.get(el)?.kill()
-    el.style.boxShadow = `0 0 ${glowSpread}px ${glowBlur}px inset ${color}`
-    const glowTween = gsap.to(el, {
-      boxShadow: `0 0 0px 0px inset ${color}`,
-      duration: 1.8,
-      ease: 'power2.out',
-      delay: 0.3,
-      onComplete: () => { glowAnimations.current.delete(el) },
-    })
-    glowAnimations.current.set(el, glowTween)
-  }, [])
+      const t = Math.min(Math.max((Math.abs(velocity) - 5) / 20, 0), 1)
+      const maxDiameter = (35 + t * 65) * 2  // radius 35→100px
+      const duration    = 0.3 + t * 0.3        // 0.3→0.6s
+      const startOpacity = 0.7 + t * 0.3      // 0.7→1.0
+
+      const ring = document.createElement('div')
+      ring.style.cssText = [
+        'position:absolute',
+        `left:${x}px`,
+        `top:${y}px`,
+        'width:2px',
+        'height:2px',
+        'border-radius:50%',
+        `border:1.5px solid ${color}`,
+        'transform:translate(-50%,-50%)',
+        'pointer-events:none',
+        'will-change:transform,opacity',
+      ].join(';')
+      container.appendChild(ring)
+      shockwaveElements.current.add(ring)
+
+      gsap.set(ring, { width: 0, height: 0, opacity: startOpacity })
+      gsap.to(ring, {
+        width: maxDiameter,
+        height: maxDiameter,
+        opacity: 0,
+        duration,
+        ease: 'power2.out',
+        onComplete: () => {
+          ring.remove()
+          shockwaveElements.current.delete(ring)
+        },
+      })
+    },
+    []
+  )
 
   /**
-   * Unified squish builder. Targets `{scaleX, scaleY, rotation}` then returns to rest.
-   * Records timing in `squishAnimations` so the cleanup interval can reap stale entries.
+   * Fill flash on collision. At low velocity the ball flashes a brighter
+   * version of its own color; at high velocity it ramps toward white.
+   * Velocity factor drives both the color-to-white lerp and the fade duration.
+   */
+  const flashTweenRef = useRef(new WeakMap<HTMLDivElement, gsap.core.Tween>())
+  const playFillFlash = useCallback(
+    (el: HTMLDivElement, color: string, velocity: number) => {
+      const t = Math.min(Math.max((Math.abs(velocity) - 5) / 20, 0), 1)
+      const fadeDuration = 0.30 + t * 0.40    // 0.30→0.70s
+      const peakAlpha    = 0.70 + t * 0.25    // 0.70→0.95
+
+      const baseRGBA = convertHSLToRGBA(color)
+
+      // Parse the r, g, b from the base rgba string
+      const match = baseRGBA.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+      const r = match ? Number(match[1]) : 180
+      const g = match ? Number(match[2]) : 180
+      const b = match ? Number(match[3]) : 180
+
+      // Lerp each channel toward 255 (white) based on velocity
+      const whiteness = t * 0.85  // 0→0.85 — never fully white, keeps a hint of color
+      const pr = Math.round(r + (255 - r) * whiteness)
+      const pg = Math.round(g + (255 - g) * whiteness)
+      const pb = Math.round(b + (255 - b) * whiteness)
+      const peakRGBA = `rgba(${pr}, ${pg}, ${pb}, ${peakAlpha.toFixed(2)})`
+
+      // Kill only the previous fill-flash tween, not squish/glow
+      flashTweenRef.current.get(el)?.kill()
+
+      const tween = gsap.fromTo(
+        el,
+        { backgroundColor: peakRGBA },
+        {
+          backgroundColor: baseRGBA,
+          duration: fadeDuration,
+          ease: 'power2.out',
+          onComplete: () => { flashTweenRef.current.delete(el) },
+        }
+      )
+      flashTweenRef.current.set(el, tween)
+    },
+    []
+  )
+
+  /**
+   * Trigger an inset glow on a single circle. Used by both wall and ball
+   * collisions. Velocity drives spread/blur, hold time, and decay duration
+   * via a single 0..1 factor (clamped to [0.4, 1.4] for visual breathing room).
+   */
+  const playGlow = useCallback(
+    (el: HTMLDivElement, color: string, radius: number, velocity: number) => {
+      const absV = Math.abs(velocity)
+      // Map velocity 5..25 → 0..1 (saturates earlier so avg hits feel punchy),
+      // then expand to 0.2..1.8 for a wider soft-to-hard range.
+      const t = Math.min(Math.max((absV - 5) / 20, 0), 1)
+      const vf = 0.2 + t * 1.6
+
+      const glowSpread = Math.max(6, radius * 1.0 * vf)
+      const glowBlur   = Math.max(2, radius * 0.3 * vf)
+      const holdDelay  = 0.25 * vf     // 0.05s soft → 0.45s hard
+      const fadeDur    = 1.6 * vf      // 0.32s soft → 2.88s hard
+
+      glowAnimations.current.get(el)?.kill()
+      el.style.boxShadow = `0 0 ${glowSpread}px ${glowBlur}px inset ${color}`
+      const glowTween = gsap.to(el, {
+        boxShadow: `0 0 0px 0px inset ${color}`,
+        duration: fadeDur,
+        ease: 'power2.out',
+        delay: holdDelay,
+        onComplete: () => { glowAnimations.current.delete(el) },
+      })
+      glowAnimations.current.set(el, glowTween)
+    },
+    []
+  )
+
+  /**
+   * Unified jello-squish builder. Oscillates `{scaleX, scaleY}` past the rest
+   * pose `N` times, with each wobble's amplitude damped by `WOBBLE_DAMPING`,
+   * then settles to (1, 1, 0). Wobble count scales 2 → 10 with velocity.
+   * Records timing in `squishAnimations` so the cleanup interval can reap
+   * stale entries.
    */
   const runSquish = useCallback(
     (
       el: HTMLDivElement,
-      opts: { velocity: number; scaleX: number; scaleY: number; rotation?: number; ease: string }
+      opts: { velocity: number; scaleX: number; scaleY: number; rotation?: number }
     ) => {
       squishAnimations.current.get(el)?.timeline.kill()
       gsap.set(el, { scaleX: 1, scaleY: 1, rotation: 0 })
 
-      const velocityFactor = Math.min(Math.max(Math.abs(opts.velocity) / SQUISH_LIMITS.MAX_VELOCITY, 0.5), 1)
-      const squishDuration = 0.1 * (1 / velocityFactor)
-      const returnDuration = 0.2 * (1 / velocityFactor)
+      const absV = Math.abs(opts.velocity)
+      const velocityFactor = Math.min(Math.max(absV / SQUISH_LIMITS.MAX_VELOCITY, 0.5), 1)
+      const segmentDuration = 0.06 * (1 / velocityFactor)
+
+      // Wobble count scales 2 → 10 with velocity
+      const MIN_WOBBLES = 2
+      const MAX_WOBBLES = 10
+      const wobbleProgress = Math.min(Math.max((absV - 5) / 25, 0), 1) // 5 → 30 → 0..1
+      const wobbles = Math.round(MIN_WOBBLES + (MAX_WOBBLES - MIN_WOBBLES) * wobbleProgress)
+      const WOBBLE_DAMPING = 0.80
+
+      // Deformation relative to rest
+      const dx = opts.scaleX - 1
+      const dy = opts.scaleY - 1
 
       const timeline = gsap.timeline({
         onComplete: () => {
@@ -346,33 +471,38 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
         },
       })
 
-      const firstStep: gsap.TweenVars = {
-        scaleX: opts.scaleX,
-        scaleY: opts.scaleY,
-        duration: squishDuration,
-        ease: opts.ease,
-      }
-      if (opts.rotation !== undefined) {
-        firstStep.rotation = `${opts.rotation}rad`
-        firstStep.transformOrigin = 'center center'
+      for (let i = 0; i < wobbles; i++) {
+        const amp = Math.pow(-WOBBLE_DAMPING, i)
+        const step: gsap.TweenVars = {
+          scaleX: 1 + dx * amp,
+          scaleY: 1 + dy * amp,
+          duration: segmentDuration,
+          ease: i === 0 ? 'power2.out' : 'sine.inOut',
+        }
+        if (i === 0 && opts.rotation !== undefined) {
+          step.rotation = `${opts.rotation}rad`
+          step.transformOrigin = 'center center'
+        } else if (i === 1 && opts.rotation !== undefined) {
+          step.rotation = 0
+        }
+        timeline.to(el, step)
       }
 
-      timeline
-        .to(el, firstStep)
-        .to(el, {
-          scaleX: 1,
-          scaleY: 1,
-          rotation: 0,
-          duration: returnDuration,
-          ease: 'elastic.out(1, 0.2)',
-          delay: 0.05,
-        })
+      // Final settle to exact rest
+      timeline.to(el, {
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0,
+        duration: segmentDuration * 0.8,
+        ease: 'sine.out',
+      })
 
       const now = Date.now()
+      const totalMs = (wobbles + 0.8) * segmentDuration * 1000
       squishAnimations.current.set(el, {
         timeline,
         startTime: now,
-        expectedEndTime: now + (squishDuration + 0.05 + returnDuration) * 1000,
+        expectedEndTime: now + totalMs,
       })
       return timeline
     },
@@ -384,9 +514,9 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
     (circleEl: HTMLDivElement, direction: 'horizontal' | 'vertical' = 'horizontal', velocity = 0) => {
       const { compress, stretch } = calculateSquishAmounts(velocity)
       if (direction === 'horizontal') {
-        runSquish(circleEl, { velocity, scaleX: compress, scaleY: stretch, ease: 'elastic.out(1, 0.1)' })
+        runSquish(circleEl, { velocity, scaleX: compress, scaleY: stretch })
       } else {
-        runSquish(circleEl, { velocity, scaleX: stretch, scaleY: compress, ease: 'elastic.out(1, 0.3)' })
+        runSquish(circleEl, { velocity, scaleX: stretch, scaleY: compress })
       }
     },
     [runSquish]
@@ -412,15 +542,15 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
           scaleX: compress,
           scaleY: stretch,
           rotation: angle,
-          ease: 'elastic.out(1, 0.3)',
         })
-        playGlow(el, color, radius)
+        playGlow(el, color, radius, relativeVelocity)
+        playFillFlash(el, color, relativeVelocity)
       }
 
       animateOne(circleEl,      state1.color, state1.radius)
       animateOne(otherCircleEl, state2.color, state2.radius)
     },
-    [runSquish, playGlow]
+    [runSquish, playGlow, playFillFlash]
   )
 
   /** Spawn a ball at canvas-relative coordinates */
@@ -482,14 +612,16 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
           const currentTime   = Date.now()
 
           if (hitLeftRight || hitTopBottom) {
+            const wallVelocity = hitLeftRight ? Math.abs(updatedState.vx) : Math.abs(updatedState.vy)
             if (hitLeftRight) {
-              playSquishAnimation(circleEl, 'horizontal', Math.abs(updatedState.vx))
+              playSquishAnimation(circleEl, 'horizontal', wallVelocity)
             } else {
-              playSquishAnimation(circleEl, 'vertical', Math.abs(updatedState.vy))
+              playSquishAnimation(circleEl, 'vertical', wallVelocity)
             }
 
-            // Glow on wall hit
-            playGlow(circleEl, updatedState.color, updatedState.radius)
+            // Glow + fill flash on wall hit
+            playGlow(circleEl, updatedState.color, updatedState.radius, wallVelocity)
+            playFillFlash(circleEl, updatedState.color, wallVelocity)
 
             // Sound cooldown
             let shouldPlaySound = false
@@ -528,8 +660,7 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
       handleWallCollision,
       addTicker,
       playSquishAnimation,
-      playGlow,
-      addCircleToRender,
+      playGlow,      playFillFlash,      addCircleToRender,
       removeBall,
     ]
   )
@@ -592,6 +723,10 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
 
           if (state1 && state2) {
             playCircleCollisionSquish(circleEl1, circleEl2, angle, state1, state2)
+            const dvx0 = (state2.vx) - (state1.vx)
+            const dvy0 = (state2.vy) - (state1.vy)
+            const rv = Math.sqrt(dvx0 * dvx0 + dvy0 * dvy0)
+            playShockwave(collisionPoint.x, collisionPoint.y, state1.color, rv)
           }
 
           if (timeSinceLast > COLLISION_COOLDOWN) {
@@ -611,7 +746,7 @@ function CircleCanvas({ onBackgroundChange, initialSpeed = 15 }: CircleCanvasPro
     animationId = requestAnimationFrame(handleCollisions)
     return () => { if (animationId !== null) cancelAnimationFrame(animationId) }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [handleCircleCollisions, playCircleCollisionSquish])
+  }, [handleCircleCollisions, playCircleCollisionSquish, playShockwave])
 
   return (
     <>
