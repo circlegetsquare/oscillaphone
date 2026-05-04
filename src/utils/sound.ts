@@ -93,6 +93,14 @@ export const initAudioContext = () => {
     // Initialize audio pools for memory optimization
     getAudioPool(audioContext);
     getEffectChainPool(audioContext);
+
+    // Recover automatically from transient hardware/renderer errors (e.g. audio
+    // device switch, system sleep, "AudioContext encountered an error" events).
+    audioContext.onstatechange = () => {
+      if (audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted' as AudioContextState)) {
+        audioContext.resume().catch(() => { /* best-effort */ })
+      }
+    }
   }
   return audioContext;
 };
@@ -290,7 +298,6 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
   const ctx = audioContext
   if (!ctx) return
 
-  const pool = getAudioPool(ctx);
   const chainPool = getEffectChainPool(ctx);
   const oscillator = ctx.createOscillator();
 
