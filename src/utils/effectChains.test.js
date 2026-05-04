@@ -212,51 +212,50 @@ describe('effectChains', () => {
 
   // ── Effect chain pool ──────────────────────────────────────────────────────
   describe('pool', () => {
-    it('starts with 8 available chains', () => {
+    it('starts with 32 available chains', () => {
       freshPool()
-      expect(getEffectChainStats().available).toBe(8)
+      expect(getEffectChainStats().available).toBe(32)
     })
 
     it('getChain() returns a chain and updates available/active counts', () => {
       const pool = freshPool()
       const chain = pool.getChain()
       expect(chain).not.toBeNull()
-      expect(getEffectChainStats().available).toBe(7)
+      expect(getEffectChainStats().available).toBe(31)
       expect(getEffectChainStats().active).toBe(1)
     })
 
-    it('pool overflow: 9th getChain() warns and still returns a usable chain', () => {
+    it('pool overflow: getChain() returns null when all chains are active', () => {
       const pool = freshPool()
-      const spy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-      const chains = Array.from({ length: 9 }, () => pool.getChain())
-
-      expect(spy).toHaveBeenCalledWith('Effect chain pool exhausted, creating new chain')
-      expect(chains[8]).not.toBeNull()
-      expect(getEffectChainStats().active).toBe(9)
+      // Exhaust the pool (32 chains)
+      const chains = Array.from({ length: 32 }, () => pool.getChain())
       expect(getEffectChainStats().available).toBe(0)
+      expect(getEffectChainStats().active).toBe(32)
 
-      spy.mockRestore()
+      // 33rd request must return null — no overflow chain created
+      const overflow = pool.getChain()
+      expect(overflow).toBeNull()
+      expect(getEffectChainStats().active).toBe(32) // count unchanged
+
       chains.forEach((c) => pool.releaseChain(c))
     })
 
-    it('overflow chain is cleaned up on release (pool does not grow past cap)', () => {
+    it('pool recovers after notes finish (all chains returned, none leaked)', () => {
       const pool = freshPool()
-      vi.spyOn(console, 'warn').mockImplementation(() => {})
-      const chains = Array.from({ length: 9 }, () => pool.getChain())
+      const chains = Array.from({ length: 32 }, () => pool.getChain())
       chains.forEach((c) => pool.releaseChain(c))
-      vi.restoreAllMocks()
 
       const stats = getEffectChainStats()
-      expect(stats.available).toBe(8)
+      expect(stats.available).toBe(32)
       expect(stats.active).toBe(0)
-      expect(stats.total).toBe(8)
+      expect(stats.total).toBe(32)
     })
 
     it('releaseChain is safe for chains not tracked by the pool', () => {
       const pool = freshPool()
       expect(() => pool.releaseChain({})).not.toThrow()
       expect(() => pool.releaseChain(null)).not.toThrow()
-      expect(getEffectChainStats().available).toBe(8)
+      expect(getEffectChainStats().available).toBe(32)
     })
   })
 })
