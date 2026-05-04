@@ -93,6 +93,14 @@ export const initAudioContext = () => {
     // Initialize audio pools for memory optimization
     getAudioPool(audioContext);
     getEffectChainPool(audioContext);
+
+    // Recover automatically from transient hardware/renderer errors (e.g. audio
+    // device switch, system sleep, "AudioContext encountered an error" events).
+    audioContext.onstatechange = () => {
+      if (audioContext && (audioContext.state === 'suspended' || audioContext.state === 'interrupted' as AudioContextState)) {
+        audioContext.resume().catch(() => { /* best-effort */ })
+      }
+    }
   }
   return audioContext;
 };
@@ -290,7 +298,6 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
   const ctx = audioContext
   if (!ctx) return
 
-  const pool = getAudioPool(ctx);
   const chainPool = getEffectChainPool(ctx);
   const oscillator = ctx.createOscillator();
 
@@ -302,28 +309,8 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
   const effectChain = chainPool.getChain();
 
   if (!effectChain) {
-    console.warn('No effect chain available, falling back to basic sound');
-    const gainNode = pool.getNode('gain') as GainNode | null;
-    const panNode = pool.getNode('stereoPanner') as StereoPannerNode | null;
-    if (!gainNode || !panNode) return;
-
-    oscillator.connect(gainNode);
-    gainNode.connect(panNode);
-    panNode.connect(globalCompressor || ctx.destination);
-
-    const currentTime = ctx.currentTime;
-    gainNode.gain.setValueAtTime(0, currentTime);
-    gainNode.gain.linearRampToValueAtTime(volume, currentTime + 0.01);
-    gainNode.gain.linearRampToValueAtTime(0, currentTime + duration);
-    panNode.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), currentTime);
-
-    oscillator.start(currentTime);
-    oscillator.stop(currentTime + duration);
-    oscillator.onended = () => {
-      pool.releaseNode(gainNode, 'gain');
-      pool.releaseNode(panNode, 'stereoPanner');
-    };
-
+    // Pool exhausted — drop this note. Creating overflow chains or flooding
+    // the audioPool both cause unbounded node accumulation and tab crashes.
     return;
   }
 
@@ -358,9 +345,11 @@ const createOptimizedBeep = (frequency: number, duration = 0.15, volume = 0.3, p
 
   // Sample-accurate cleanup tied to oscillator end (covers reverb/delay tails).
   // Using onended avoids wall-clock setTimeout drift and orphan timers on unmount.
-  const reverbTailTime = reverb.enabled ? 2.0 : 0;
+  // Reverb tail is derived from actual IR duration (0.3 + roomSize*2.2) rather
+  // than a fixed 2 s so chains return to the pool sooner, reducing peak demand.
+  const reverbTailTime = reverb.enabled ? (0.3 + reverb.roomSize * 2.2) : 0;
   const delayTailTime = delay.enabled ? delay.time * 4 : 0;
-  const tailTime = Math.max(reverbTailTime, delayTailTime);
+  const tailTime = Math.min(3.0, Math.max(reverbTailTime, delayTailTime));
   oscillator.stop(currentTime + duration + tailTime);
   oscillator.onended = () => {
     chainPool.releaseChain(effectChain);

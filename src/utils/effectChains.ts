@@ -359,7 +359,7 @@ class EffectChainPool {
   private availableChains: EffectChain[]
   private activeChains: Set<EffectChain>
 
-  constructor(audioContext: AudioContext, poolSize = 8) {
+  constructor(audioContext: AudioContext, poolSize = 32) {
     this.audioContext = audioContext
     this.poolSize = poolSize
     this.availableChains = []
@@ -373,11 +373,12 @@ class EffectChainPool {
     }
   }
 
-  getChain(): EffectChain {
-    let chain = this.availableChains.pop()
+  getChain(): EffectChain | null {
+    const chain = this.availableChains.pop()
     if (!chain) {
-      console.warn('Effect chain pool exhausted, creating new chain')
-      chain = new EffectChain(this.audioContext, 'overflow')
+      // Pool exhausted — return null so callers drop the note rather than
+      // creating unbounded overflow chains that accumulate and crash the tab.
+      return null
     }
     chain.activate()
     this.activeChains.add(chain)
